@@ -33,19 +33,23 @@
     height: 62px;
     border-radius: 50%;
     border: none;
-    background: transparent;
+    background: #4a6cf7;
     cursor: pointer;
     padding: 0;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.14);
+    box-shadow: 0 2px 10px rgba(74, 108, 247, 0.35);
     transition: transform 0.2s ease, box-shadow 0.2s ease;
     display: flex;
     align-items: center;
     justify-content: center;
+    overflow: hidden;
+    touch-action: none;
 }
 
-.local-ai-course-assistant__toggle:hover {
-    transform: scale(1.1);
-    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2);
+@media (hover: hover) {
+    .local-ai-course-assistant__toggle:hover {
+        transform: scale(1.1);
+        box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2);
+    }
 }
 
 .local-ai-course-assistant__toggle:focus-visible {
@@ -166,10 +170,12 @@
     text-decoration: none;
 }
 
-.local-ai-course-assistant__header-actions button:hover,
-.local-ai-course-assistant__header-actions a:hover {
-    opacity: 1;
-    background: rgba(255, 255, 255, 0.15);
+@media (hover: hover) {
+    .local-ai-course-assistant__header-actions button:hover,
+    .local-ai-course-assistant__header-actions a:hover {
+        opacity: 1;
+        background: rgba(255, 255, 255, 0.15);
+    }
 }
 
 .local-ai-course-assistant__header-actions button .icon,
@@ -183,6 +189,7 @@
 .local-ai-course-assistant__messages {
     flex: 1 1 auto;
     overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
     padding: 12px;
     display: flex;
     flex-direction: column;
@@ -326,7 +333,7 @@
     border: 1px solid #d1d5db;
     border-radius: 8px;
     padding: 7px 10px;
-    font-size: 13px;
+    font-size: 16px;
     resize: none;
     max-height: 120px;
     line-height: 1.4;
@@ -359,8 +366,10 @@
     cursor: default;
 }
 
-.local-ai-course-assistant__btn-send:not(:disabled):hover {
-    background: #3b5de7;
+@media (hover: hover) {
+    .local-ai-course-assistant__btn-send:not(:disabled):hover {
+        background: #3b5de7;
+    }
 }
 
 .local-ai-course-assistant__btn-send .icon {
@@ -472,8 +481,10 @@
     flex-shrink: 0;
 }
 
-.local-ai-course-assistant__welcome-cta:hover {
-    background: #3b5de7;
+@media (hover: hover) {
+    .local-ai-course-assistant__welcome-cta:hover {
+        background: #3b5de7;
+    }
 }
 
 .local-ai-course-assistant__welcome-cta:focus-visible {
@@ -575,26 +586,17 @@
         font-size: 13px;
     }
 
-    /* Conversation starters — row layout (icon left, text right) */
+    /* Conversation starters — even more compact on mobile */
     .local-ai-course-assistant__starters {
-        padding: 6px 8px 4px;
-        gap: 5px;
+        padding: 5px 7px 3px;
+        gap: 4px;
     }
 
     .local-ai-course-assistant__starter {
-        flex-direction: row;
-        align-items: center;
-        padding: 7px 9px;
-        gap: 7px;
+        padding: 6px 8px;
+        gap: 5px;
         font-size: 11px;
-        border-radius: 10px;
-    }
-
-    .aica-starter-icon {
-        width: 22px;
-        height: 22px;
-        border-radius: 6px;
-        flex-shrink: 0;
+        border-radius: 20px;
     }
 
     .aica-starter-icon svg {
@@ -705,9 +707,11 @@
     transition: color 0.15s, background 0.15s;
 }
 
-.local-ai-course-assistant__btn-reset:hover {
-    color: #fff;
-    background: rgba(255, 255, 255, 0.15);
+@media (hover: hover) {
+    .local-ai-course-assistant__btn-reset:hover {
+        color: #fff;
+        background: rgba(255, 255, 255, 0.15);
+    }
 }
 
 /* =========================================================
@@ -727,9 +731,11 @@
     transition: color 0.15s, background 0.15s;
 }
 
-.local-ai-course-assistant__btn-quiz:hover {
-    color: #fff;
-    background: rgba(255, 255, 255, 0.15);
+@media (hover: hover) {
+    .local-ai-course-assistant__btn-quiz:hover {
+        color: #fff;
+        background: rgba(255, 255, 255, 0.15);
+    }
 }
 
 .local-ai-course-assistant__btn-quiz:disabled {
@@ -790,9 +796,11 @@
     transition: border-color 0.15s, background 0.15s, color 0.15s;
 }
 
-.aica-quiz-setup__count-btn:hover {
-    border-color: #4a6cf7;
-    color: #4a6cf7;
+@media (hover: hover) {
+    .aica-quiz-setup__count-btn:hover {
+        border-color: #4a6cf7;
+        color: #4a6cf7;
+    }
 }
 
 .aica-quiz-setup__count-btn--selected {
@@ -840,8 +848,10 @@
     transition: background 0.15s;
 }
 
-.aica-quiz-setup__start:hover {
-    background: #3a5ce4;
+@media (hover: hover) {
+    .aica-quiz-setup__start:hover {
+        background: #3a5ce4;
+    }
 }
 
 .aica-quiz-setup__cancel {
@@ -857,8 +867,10 @@
     padding: 4px;
 }
 
-.aica-quiz-setup__cancel:hover {
-    color: #6b7280;
+@media (hover: hover) {
+    .aica-quiz-setup__cancel:hover {
+        color: #6b7280;
+    }
 }
 
 /* =========================================================
@@ -909,9 +921,11 @@
     transition: border-color 0.15s, background 0.15s;
 }
 
-.aica-quiz__choice:hover:not(:disabled) {
-    border-color: #4a6cf7;
-    background: #f0f3ff;
+@media (hover: hover) {
+    .aica-quiz__choice:hover:not(:disabled) {
+        border-color: #4a6cf7;
+        background: #f0f3ff;
+    }
 }
 
 .aica-quiz__choice--correct {
@@ -970,8 +984,10 @@
     transition: background 0.15s;
 }
 
-.aica-quiz__next:hover:not(:disabled) {
-    background: #3a5ce4;
+@media (hover: hover) {
+    .aica-quiz__next:hover:not(:disabled) {
+        background: #3a5ce4;
+    }
 }
 
 .aica-quiz__next:disabled {
@@ -1008,9 +1024,11 @@
     flex-shrink: 0;
 }
 
-.local-ai-course-assistant__btn-mic:hover {
-    color: #4a6cf7;
-    background: rgba(74, 108, 247, 0.08);
+@media (hover: hover) {
+    .local-ai-course-assistant__btn-mic:hover {
+        color: #4a6cf7;
+        background: rgba(74, 108, 247, 0.08);
+    }
 }
 
 /* Recording state */
@@ -1053,14 +1071,21 @@
     backdrop-filter: blur(2px);
 }
 
-.local-ai-course-assistant__message--assistant:hover .local-ai-course-assistant__btn-speak,
 .local-ai-course-assistant__btn-speak--active {
     opacity: 1;
 }
 
-.local-ai-course-assistant__btn-speak:hover {
-    color: #4a6cf7;
-    background: rgba(255, 255, 255, 0.98);
+@media (hover: hover) {
+    .local-ai-course-assistant__message--assistant:hover .local-ai-course-assistant__btn-speak {
+        opacity: 1;
+    }
+}
+
+@media (hover: hover) {
+    .local-ai-course-assistant__btn-speak:hover {
+        color: #4a6cf7;
+        background: rgba(255, 255, 255, 0.98);
+    }
 }
 
 .local-ai-course-assistant__btn-speak--active {
@@ -1120,9 +1145,11 @@
     transition: background 0.15s;
 }
 
-.local-ai-course-assistant__lang-accept:hover {
-    background: #1e40af;
-    color: #fff;
+@media (hover: hover) {
+    .local-ai-course-assistant__lang-accept:hover {
+        background: #1e40af;
+        color: #fff;
+    }
 }
 
 .local-ai-course-assistant__lang-dismiss {
@@ -1130,8 +1157,10 @@
     color: #6b7280;
 }
 
-.local-ai-course-assistant__lang-dismiss:hover {
-    background: #f3f4f6;
+@media (hover: hover) {
+    .local-ai-course-assistant__lang-dismiss:hover {
+        background: #f3f4f6;
+    }
 }
 
 /* =========================================================
@@ -1151,8 +1180,10 @@
     display: none; /* shown via JS */
 }
 
-.local-ai-course-assistant__btn-lang:hover {
-    color: #4a6cf7;
+@media (hover: hover) {
+    .local-ai-course-assistant__btn-lang:hover {
+        color: #4a6cf7;
+    }
 }
 
 /* =========================================================
@@ -1169,6 +1200,7 @@
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
     max-height: 220px;
     overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
     width: 180px;
     z-index: 10;
     display: flex;
@@ -1188,8 +1220,10 @@
     width: 100%;
 }
 
-.aica-lang-picker__option:hover {
-    background: #f3f4f6;
+@media (hover: hover) {
+    .aica-lang-picker__option:hover {
+        background: #f3f4f6;
+    }
 }
 
 .aica-lang-picker__option--active {
@@ -1345,9 +1379,11 @@
     color: #4a6cf7;
 }
 
-.aica-quiz__retake:hover {
-    background: #4a6cf7;
-    color: #fff;
+@media (hover: hover) {
+    .aica-quiz__retake:hover {
+        background: #4a6cf7;
+        color: #fff;
+    }
 }
 
 .aica-quiz__exit {
@@ -1356,9 +1392,11 @@
     color: #6b7280;
 }
 
-.aica-quiz__exit:hover {
-    background: #f3f4f6;
-    color: #374151;
+@media (hover: hover) {
+    .aica-quiz__exit:hover {
+        background: #f3f4f6;
+        color: #374151;
+    }
 }
 
 /* =========================================================
@@ -1392,6 +1430,7 @@
 .local-ai-course-assistant__header {
     cursor: grab;
     user-select: none;
+    touch-action: none;
 }
 
 .local-ai-course-assistant--dragging .local-ai-course-assistant__header {
@@ -1425,8 +1464,8 @@
 .local-ai-course-assistant__starters {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 8px;
-    padding: 12px 12px 6px;
+    gap: 6px;
+    padding: 8px 10px 4px;
 }
 
 .local-ai-course-assistant__starters[aria-hidden="true"],
@@ -1436,47 +1475,51 @@
 
 .local-ai-course-assistant__starter {
     display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 8px;
+    flex-direction: row;
+    align-items: center;
+    gap: 6px;
     width: 100%;
-    padding: 12px;
+    padding: 7px 10px;
     background: #fff;
     border: 1px solid #e8eaed;
-    border-radius: 14px;
-    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+    border-radius: 20px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
     color: #374151;
     font-size: 12px;
     font-weight: 500;
     text-align: left;
     cursor: pointer;
-    line-height: 1.35;
+    line-height: 1.3;
     transition: background 0.15s, border-color 0.15s,
                 box-shadow 0.15s, color 0.15s;
 }
 
-.local-ai-course-assistant__starter:hover {
-    background: #f5f7ff;
-    border-color: #b8c4fb;
-    box-shadow: 0 2px 10px rgba(74, 108, 247, 0.12);
-    color: #3a5ce4;
+@media (hover: hover) {
+    .local-ai-course-assistant__starter:hover {
+        background: #f5f7ff;
+        border-color: #b8c4fb;
+        box-shadow: 0 2px 8px rgba(74, 108, 247, 0.1);
+        color: #3a5ce4;
+    }
 }
 
 .aica-starter-icon {
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 32px;
-    height: 32px;
-    border-radius: 8px;
-    background: rgba(74, 108, 247, 0.1);
     color: #4a6cf7;
     flex-shrink: 0;
-    transition: background 0.15s;
 }
 
-.local-ai-course-assistant__starter:hover .aica-starter-icon {
-    background: rgba(74, 108, 247, 0.18);
+.aica-starter-icon svg {
+    width: 16px;
+    height: 16px;
+}
+
+@media (hover: hover) {
+    .local-ai-course-assistant__starter:hover .aica-starter-icon {
+        color: #3a5ce4;
+    }
 }
 
 /* ==========================================================
@@ -1489,10 +1532,16 @@
     z-index: 10;
     opacity: 0;
     transition: opacity 0.15s;
+    touch-action: none;
 }
 
-/* Show handles on hover over the drawer */
-.local-ai-course-assistant__drawer:hover .aica-resize-handle {
+/* Show handles on hover (pointer devices) or focus-within (touch/keyboard) */
+@media (hover: hover) {
+    .local-ai-course-assistant__drawer:hover .aica-resize-handle {
+        opacity: 1;
+    }
+}
+.local-ai-course-assistant__drawer:focus-within .aica-resize-handle {
     opacity: 1;
 }
 
@@ -1547,4 +1596,737 @@
     .aica-resize-handle {
         display: none;
     }
+}
+
+/* =========================================================
+   Avatar picker button (header)
+   ========================================================= */
+
+.local-ai-course-assistant__btn-avatar {
+    background: none;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    outline-offset: 2px;
+}
+
+@media (hover: hover) {
+    .local-ai-course-assistant__btn-avatar:hover .local-ai-course-assistant__header-avatar {
+        opacity: 0.8;
+    }
+}
+
+/* =========================================================
+   Settings panel (language / avatar / voice)
+   ========================================================= */
+
+.aica-settings-panel {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: #fff;
+    display: flex;
+    flex-direction: column;
+    z-index: 20;
+    border-radius: inherit;
+}
+
+.aica-settings-panel__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    border-bottom: 1px solid #e5e7eb;
+    flex-shrink: 0;
+}
+
+.aica-settings-panel__title {
+    font-size: 15px;
+    font-weight: 600;
+    color: #1a1a2e;
+}
+
+.aica-settings-panel__close {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: #6b7280;
+    padding: 4px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+@media (hover: hover) {
+    .aica-settings-panel__close:hover {
+        background: #f3f4f6;
+        color: #1a1a2e;
+    }
+}
+
+.aica-settings-panel__content {
+    flex: 1 1 auto;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    padding: 0 0 16px;
+}
+
+.aica-settings-panel__section {
+    padding: 16px 16px 0;
+}
+
+.aica-settings-panel__section + .aica-settings-panel__section {
+    border-top: 1px solid #f3f4f6;
+    margin-top: 16px;
+}
+
+.aica-settings-panel__section-title {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #9ca3af;
+    margin: 0 0 10px;
+}
+
+.aica-settings-panel__lang-list {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    max-height: 220px;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 4px;
+}
+
+.aica-settings-panel__lang-opt {
+    background: none;
+    border: none;
+    border-radius: 6px;
+    color: #374151;
+    cursor: pointer;
+    font-size: 13px;
+    padding: 6px 10px;
+    text-align: left;
+    transition: background 0.1s;
+    width: 100%;
+}
+
+@media (hover: hover) {
+    .aica-settings-panel__lang-opt:hover {
+        background: #f3f4f6;
+    }
+}
+
+.aica-settings-panel__lang-opt--active {
+    color: #4a6cf7;
+    font-weight: 600;
+    background: #eef2ff;
+}
+
+.aica-settings-panel__avatar-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 8px;
+}
+
+.aica-settings-panel__avatar-opt {
+    aspect-ratio: 1;
+    background: #f9fafb;
+    border: 2px solid transparent;
+    border-radius: 50%;
+    cursor: pointer;
+    padding: 4px;
+    transition: border-color 0.15s;
+}
+
+@media (hover: hover) {
+    .aica-settings-panel__avatar-opt:hover {
+        border-color: #9ca3af;
+    }
+}
+
+.aica-settings-panel__avatar-opt--selected {
+    border-color: #4a6cf7;
+    background: #eef2ff;
+}
+
+.aica-settings-panel__avatar-opt img {
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    display: block;
+}
+
+.aica-settings-panel__note {
+    font-size: 12px;
+    color: #6b7280;
+    margin: 0;
+    line-height: 1.5;
+}
+
+/* =========================================================
+   Avatar picker overlay
+   ========================================================= */
+
+.aica-avatar-picker {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.45);
+    z-index: 200;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: inherit;
+}
+
+.aica-avatar-picker__panel {
+    background: #fff;
+    border-radius: 14px;
+    padding: 16px;
+    width: calc(100% - 32px);
+    max-width: 320px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
+}
+
+.aica-avatar-picker__title {
+    font-size: 13px;
+    font-weight: 600;
+    color: #1a1a2e;
+    margin: 0 0 12px;
+    text-align: center;
+}
+
+.aica-avatar-picker__grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.aica-avatar-option {
+    background: none;
+    border: 3px solid transparent;
+    border-radius: 50%;
+    padding: 2px;
+    cursor: pointer;
+    transition: border-color 0.15s, transform 0.1s;
+}
+
+@media (hover: hover) {
+    .aica-avatar-option:hover {
+        border-color: #b8c4fb;
+        transform: scale(1.06);
+    }
+}
+
+.aica-avatar-option--selected {
+    border-color: #4a6cf7;
+}
+
+.aica-avatar-option img {
+    width: 100%;
+    aspect-ratio: 1;
+    border-radius: 50%;
+    display: block;
+}
+
+.aica-avatar-picker__cancel {
+    display: block;
+    width: 100%;
+    padding: 7px;
+    background: #f3f4f6;
+    border: none;
+    border-radius: 8px;
+    font-size: 12px;
+    color: #6b7280;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+@media (hover: hover) {
+    .aica-avatar-picker__cancel:hover {
+        background: #e5e7eb;
+    }
+}
+
+/* =========================================================
+   Dynamic next-step suggestion chips
+   ========================================================= */
+
+.aica-suggestions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 4px 12px 8px;
+}
+
+.aica-suggestion {
+    padding: 5px 12px;
+    background: #f0f3ff;
+    border: 1px solid #c7d0f8;
+    border-radius: 20px;
+    font-size: 13px;
+    color: #3a5ce4;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s;
+    line-height: 1.4;
+}
+
+@media (hover: hover) {
+    .aica-suggestion:hover {
+        background: #e0e6ff;
+        border-color: #a0b0f0;
+    }
+}
+
+/* =========================================================
+   ELL starter (spans full grid width)
+   ========================================================= */
+
+.local-ai-course-assistant__starter--wide {
+    grid-column: 1 / -1;
+}
+
+/* =========================================================
+   Voice overlay
+   ========================================================= */
+
+.aica-voice-overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 150;
+    background: linear-gradient(160deg, #1a1a2e 0%, #16213e 100%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 20px 16px 16px;
+    gap: 12px;
+    border-radius: inherit;
+    animation: aica-fade-in 0.25s ease;
+}
+
+@keyframes aica-fade-in {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+}
+
+.aica-voice-end {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    background: rgba(255, 255, 255, 0.12);
+    border: none;
+    color: #fff;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.15s;
+}
+
+@media (hover: hover) {
+    .aica-voice-end:hover {
+        background: rgba(255, 255, 255, 0.25);
+    }
+}
+
+.aica-voice-avatar {
+    width: 120px;
+    height: 120px;
+    position: relative;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.aica-voice-avatar img {
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    display: block;
+    object-fit: cover;
+}
+
+.aica-voice-avatar::after {
+    content: '';
+    position: absolute;
+    inset: -6px;
+    border-radius: 50%;
+    border: 3px solid #4a6cf7;
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+
+.aica-voice-avatar--speaking::after {
+    opacity: 1;
+    animation: aica-ring-pulse 0.9s ease infinite;
+}
+
+.aica-voice-avatar--speaking img {
+    animation: aica-bounce 0.45s ease infinite alternate;
+}
+
+.aica-voice-avatar--listening::after {
+    opacity: 0.5;
+    animation: aica-ring-pulse 1.8s ease infinite;
+}
+
+@keyframes aica-bounce {
+    from { transform: translateY(0) scale(1); }
+    to   { transform: translateY(-9px) scale(1.04); }
+}
+
+@keyframes aica-ring-pulse {
+    0%, 100% { transform: scale(1); opacity: 0.8; }
+    50%       { transform: scale(1.14); opacity: 0.25; }
+}
+
+.aica-voice-transcript {
+    flex: 1;
+    width: 100%;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 4px 0;
+    min-height: 0;
+}
+
+.aica-voice-line--assistant {
+    color: #e0e7ff;
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+.aica-voice-line--user {
+    color: #9ca3af;
+    font-size: 12px;
+    text-align: right;
+}
+
+.aica-voice-status {
+    font-size: 12px;
+    color: #94a3b8;
+    letter-spacing: 0.03em;
+    flex-shrink: 0;
+}
+
+/* ==========================================================
+   SVG Avatar containers
+   ========================================================== */
+
+.aica-avatar-svg {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+}
+
+.aica-avatar-svg svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+}
+
+/* Hide fallback img when SVG is rendered */
+.aica-avatar-svg--has-svg img {
+    display: none;
+}
+
+/* =========================================================
+   Word-by-word TTS highlighting
+   ========================================================= */
+
+.aica-word {
+    display: inline;
+    border-radius: 2px;
+    transition: background 0.1s, color 0.1s;
+}
+
+.aica-word--active {
+    background: rgba(74, 108, 247, 0.18);
+    color: #4a6cf7;
+}
+
+/* =========================================================
+   Avatar speaking animations
+   - PNG/SVG-file preset avatars: bounce vertically while TTS plays
+   - Generated SVG avatars: mouth moves (driven by Web Audio; CSS fallback below)
+   ========================================================= */
+
+/* Bounce — for preset (non-generated) avatars */
+@keyframes aica-avatar-bounce {
+    0%   { transform: translateY(0); }
+    35%  { transform: translateY(-8px) scale(1.04); }
+    55%  { transform: translateY(-3px) scale(1.01); }
+    70%  { transform: translateY(-6px) scale(1.03); }
+    100% { transform: translateY(0); }
+}
+
+/* PNG/SVG-file avatars: bounce */
+.aica-avatar-svg--speaking:not(.aica-avatar-svg--has-svg) {
+    animation: aica-avatar-bounce 0.65s ease-in-out infinite;
+}
+
+/* CSS fallback mouth for generated SVG avatars when Web Audio is unavailable */
+.aica-avatar-svg--has-svg.aica-avatar-svg--speaking .aica-mouth-smile {
+    animation: aica-mouth-fade 0.35s ease-in-out infinite alternate;
+}
+
+.aica-avatar-svg--has-svg.aica-avatar-svg--speaking .aica-mouth-open {
+    animation: aica-mouth-reveal 0.35s ease-in-out infinite alternate;
+    transform-origin: 32px 39.5px;
+}
+
+@keyframes aica-mouth-fade {
+    from { opacity: 1; }
+    to   { opacity: 0.1; }
+}
+
+@keyframes aica-mouth-reveal {
+    from { transform: scaleY(0); opacity: 0; }
+    to   { transform: scaleY(1); opacity: 1; }
+}
+
+/* Focus sentinel — absorbs initial focus from ARIA dialog, zero visual footprint */
+.aica-focus-sentinel {
+    position: absolute;
+    width: 0;
+    height: 0;
+    overflow: hidden;
+    opacity: 0;
+    pointer-events: none;
+}
+
+/* ==========================================================
+   SVG Avatar Picker overlay
+   ========================================================== */
+
+.aica-svg-picker {
+    position: absolute;
+    inset: 0;
+    z-index: 200;
+    background: rgba(0, 0, 0, 0.45);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.aica-svg-picker__panel {
+    background: #fff;
+    border-radius: 14px;
+    padding: 18px 16px 14px;
+    width: calc(100% - 32px);
+    max-width: 300px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.aica-svg-picker__preview {
+    width: 72px;
+    height: 72px;
+    border-radius: 50%;
+    overflow: hidden;
+    border: 2px solid #e8eaed;
+    margin: 0 auto 4px;
+    background: #f5f7ff;
+    flex-shrink: 0;
+}
+
+.aica-svg-picker__preview svg {
+    width: 100%;
+    height: 100%;
+}
+
+.aica-svg-picker__row {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.aica-svg-picker__label {
+    font-size: 11px;
+    font-weight: 600;
+    color: #6b7280;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+/* Gender trio */
+.aica-av-trio {
+    display: flex;
+    gap: 4px;
+}
+
+.aica-av-trio__btn {
+    flex: 1;
+    padding: 5px 4px;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    background: #f9fafb;
+    font-size: 11px;
+    font-weight: 500;
+    color: #374151;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+
+@media (hover: hover) {
+    .aica-av-trio__btn:hover {
+        background: #f0f4ff;
+        border-color: #a5b4fc;
+    }
+}
+
+.aica-av-trio__btn--active {
+    background: #4a6cf7;
+    border-color: #4a6cf7;
+    color: #fff;
+}
+
+/* Colour swatches */
+.aica-av-swatches {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.aica-av-swatch {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    border: 2px solid transparent;
+    cursor: pointer;
+    transition: border-color 0.15s, transform 0.15s;
+    flex-shrink: 0;
+}
+
+@media (hover: hover) {
+    .aica-av-swatch:hover {
+        transform: scale(1.15);
+    }
+}
+
+.aica-av-swatch--active {
+    border-color: #4a6cf7;
+    box-shadow: 0 0 0 2px #fff, 0 0 0 4px #4a6cf7;
+}
+
+/* Style swatches (mini face thumbnails) */
+.aica-av-style-swatch {
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
+    border: 2px solid #e5e7eb;
+    background: #f9fafb;
+    cursor: pointer;
+    overflow: hidden;
+    padding: 2px;
+    transition: border-color 0.15s;
+    flex-shrink: 0;
+}
+
+@media (hover: hover) {
+    .aica-av-style-swatch:hover {
+        border-color: #a5b4fc;
+    }
+}
+
+.aica-av-style-swatch--active {
+    border-color: #4a6cf7;
+    background: #eef2ff;
+}
+
+.aica-av-style-swatch svg {
+    width: 100%;
+    height: 100%;
+    display: block;
+}
+
+/* Done button */
+.aica-svg-picker__done {
+    padding: 9px 0;
+    border: none;
+    border-radius: 10px;
+    background: #4a6cf7;
+    color: #fff;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s;
+    width: 100%;
+    margin-top: 2px;
+}
+
+@media (hover: hover) {
+    .aica-svg-picker__done:hover {
+        background: #3a5ce4;
+    }
+}
+
+/* ==========================================================
+   Voice starter button — "Speak a starter" mic row
+   ========================================================== */
+
+.aica-starter-voice__btn {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    width: 100%;
+    padding: 6px 10px;
+    background: none;
+    border: 1px dashed #c9d0e8;
+    border-radius: 20px;
+    color: #6b7280;
+    font-size: 11.5px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.aica-starter-voice__btn--recording {
+    background: #eef2ff;
+    border-color: #4a6cf7;
+    border-style: solid;
+    color: #4a6cf7;
+}
+
+@media (hover: hover) {
+    .aica-starter-voice__btn:hover {
+        background: #eef2ff;
+        border-color: #4a6cf7;
+        border-style: solid;
+        color: #4a6cf7;
+    }
+}
+
+.aica-starter-voice__btn--recording {
+    animation: aica-voice-btn-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes aica-voice-btn-pulse {
+    0%, 100% { opacity: 1; }
+    50%       { opacity: 0.6; }
 }

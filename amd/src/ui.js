@@ -55,8 +55,344 @@ define([
     const DRAG_KEY = 'aica_drag_pos';
     /** localStorage key for persisting custom resize dimensions */
     const SIZE_KEY = 'aica_custom_size';
+    /** localStorage key for SVG avatar preferences */
+    const AVATAR_KEY = 'aica_avatar';
     /** Minimum pixel movement to count as a drag (suppresses subsequent click) */
     const DRAG_THRESHOLD = 8;
+
+    // -----------------------------------------------------------------------
+    // SVG avatar system — generates inline face SVGs from user preferences
+    // -----------------------------------------------------------------------
+
+    /** Skin tone palette (light → dark) */
+    const SKIN_COLORS = ['#FDDBB4', '#EDB98A', '#D08B5B', '#AE5D29', '#694D3D'];
+    /** Hair colour palette */
+    const HAIR_COLORS = ['#1C1C1C', '#4A2912', '#8B4513', '#D4A017', '#C0392B', '#9CA3AF'];
+    /** Default avatar preferences */
+    const AVATAR_DEFAULTS = {gender: 'n', skinIdx: 2, hairIdx: 1, styleIdx: 0};
+
+    /**
+     * Hair SVG path fragments, indexed by gender key then style index.
+     * The placeholder {h} is replaced with the hair colour at render time.
+     * viewBox is 0 0 64 64; head circle is cx=32 cy=32 r=22.
+     */
+    const HAIR_DEFS = {
+        n: [
+            // 0: Natural coils
+            '<circle cx="32" cy="11" r="21" fill="{h}"/>' +
+            '<circle cx="13" cy="22" r="10" fill="{h}"/>' +
+            '<circle cx="51" cy="22" r="10" fill="{h}"/>',
+            // 1: Short crop
+            '<path d="M13 32 Q13 11 32 11 Q51 11 51 32 Q49 17 32 17 Q15 17 13 32Z" fill="{h}"/>',
+            // 2: Medium wavy
+            '<path d="M13 32 Q13 10 32 10 Q51 10 51 32 Q47 18 40 15 Q36 13 32 14 Q28 13 24 15 Q17 18 13 32Z" fill="{h}"/>',
+        ],
+        f: [
+            // 0: Bob side-part
+            '<path d="M13 32 Q13 10 32 10 Q51 10 51 32 Q52 44 50 54 Q44 56 41 46 Q38 39 32 39 Q26 39 23 46 Q20 56 14 54 Q12 44 13 32Z" fill="{h}"/>',
+            // 1: Long straight
+            '<path d="M13 32 Q13 10 32 10 Q51 10 51 32 Q54 49 53 66 Q44 68 40 54 Q36 43 32 43 Q28 43 24 54 Q20 68 11 66 Q10 49 13 32Z" fill="{h}"/>',
+            // 2: Braided updo
+            '<ellipse cx="32" cy="10" rx="13" ry="11" fill="{h}"/>' +
+            '<rect x="29" y="-2" width="6" height="15" rx="3" fill="{h}"/>' +
+            '<path d="M13 32 Q13 15 20 12 Q16 20 14 32Z" fill="{h}"/>' +
+            '<path d="M51 32 Q51 15 44 12 Q48 20 50 32Z" fill="{h}"/>',
+        ],
+        m: [
+            // 0: Short crop
+            '<path d="M13 32 Q13 13 32 13 Q51 13 51 32 Q49 20 32 20 Q15 20 13 32Z" fill="{h}"/>',
+            // 1: Fade taper
+            '<path d="M15 34 Q14 15 32 14 Q50 15 49 34 Q47 22 40 19 Q36 17 32 18 Q28 17 24 19 Q17 22 15 34Z" fill="{h}"/>',
+            // 2: Textured wave
+            '<path d="M13 32 Q13 11 32 11 Q51 11 51 32 Q49 17 43 14 Q37 12 32 13 Q27 12 21 14 Q15 17 13 32Z" fill="{h}"/>',
+        ],
+    };
+
+    /**
+     * Build an inline SVG string for an avatar face.
+     *
+     * @param {{gender:string, skinIdx:number, hairIdx:number, styleIdx:number}} prefs
+     * @returns {string} SVG markup
+     */
+    const buildFaceSVG = function(prefs) {
+        var p = prefs || AVATAR_DEFAULTS;
+        var skin = SKIN_COLORS[Math.min(p.skinIdx || 0, SKIN_COLORS.length - 1)];
+        var hair = HAIR_COLORS[Math.min(p.hairIdx || 0, HAIR_COLORS.length - 1)];
+        var gender = p.gender || 'n';
+        var styles = HAIR_DEFS[gender] || HAIR_DEFS.n;
+        var styleIdx = Math.min(p.styleIdx || 0, styles.length - 1);
+        var hairSVG = styles[styleIdx].replace(/\{h\}/g, hair);
+        return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="100%" height="100%">'
+            + '<rect x="0" y="0" width="64" height="64" fill="white"/>'
+            + '<circle cx="32" cy="60" r="22" fill="#94a3b8"/>'   // shirt (clipped)
+            + hairSVG                                               // hair (behind head)
+            + '<circle cx="32" cy="32" r="22" fill="' + skin + '"/>'  // head
+            + '<circle cx="25" cy="30" r="2" fill="#2d1b0e"/>'    // left eye
+            + '<circle cx="39" cy="30" r="2" fill="#2d1b0e"/>'    // right eye
+            + '<path class="aica-mouth-smile" d="M27 38 Q32 42 37 38" stroke="#2d1b0e" stroke-width="1.5" fill="none" stroke-linecap="round"/>'
+            + '<ellipse class="aica-mouth-open" cx="32" cy="39.5" rx="4" ry="3.5" fill="#3d1a08" opacity="0" style="transform-origin:32px 39.5px;transform:scaleY(0);"/>'
+            + '</svg>';
+    };
+
+    /**
+     * Write an SVG avatar into a container div.
+     *
+     * @param {HTMLElement} container
+     * @param {{gender, skinIdx, hairIdx, styleIdx}} prefs
+     */
+    const renderAvatar = function(container, prefs) {
+        if (!container) {
+            return;
+        }
+        container.innerHTML = buildFaceSVG(prefs);
+        container.classList.add('aica-avatar-svg--has-svg');
+    };
+
+    /**
+     * Load avatar preferences from localStorage.
+     *
+     * @returns {{gender, skinIdx, hairIdx, styleIdx}}
+     */
+    const loadAvatarPrefs = function() {
+        try {
+            var raw = localStorage.getItem(AVATAR_KEY);
+            if (raw) {
+                return Object.assign({}, AVATAR_DEFAULTS, JSON.parse(raw));
+            }
+        } catch (e) { /**/ }
+        return Object.assign({}, AVATAR_DEFAULTS);
+    };
+
+    /**
+     * Save avatar preferences to localStorage.
+     *
+     * @param {{gender, skinIdx, hairIdx, styleIdx}} prefs
+     */
+    const saveAvatarPrefs = function(prefs) {
+        try {
+            localStorage.setItem(AVATAR_KEY, JSON.stringify(prefs));
+        } catch (e) { /**/ }
+    };
+
+    /**
+     * Render SVG avatars into all avatar containers in the widget.
+     *
+     * @param {{gender, skinIdx, hairIdx, styleIdx}} prefs
+     */
+    const applyAvatarPrefs = function(prefs) {
+        if (!root) {
+            return;
+        }
+        root.querySelectorAll('.aica-avatar-svg').forEach(function(container) {
+            renderAvatar(container, prefs);
+        });
+    };
+
+    /**
+     * Initialise SVG avatars on page load (reads prefs from localStorage).
+     * If no prefs exist the fallback <img> inside each container stays visible.
+     */
+    const initSVGAvatars = function() {
+        if (!root) {
+            return;
+        }
+        var prefs = loadAvatarPrefs();
+        // Only swap to SVG if user has saved a custom preference (not default).
+        var hasCustom = false;
+        try {
+            hasCustom = !!localStorage.getItem(AVATAR_KEY);
+        } catch (e) { /**/ }
+        if (hasCustom) {
+            applyAvatarPrefs(prefs);
+        }
+    };
+
+    /**
+     * Show the SVG avatar customisation picker overlay inside the drawer.
+     * Selecting options live-previews and saves to localStorage.
+     */
+    const showSVGAvatarPicker = function() {
+        if (!drawer) {
+            return;
+        }
+        // Toggle: close if already open.
+        var existing = drawer.querySelector('.aica-svg-picker');
+        if (existing) {
+            existing.remove();
+            return;
+        }
+
+        var prefs = loadAvatarPrefs();
+        var cur = Object.assign({}, prefs);
+
+        // Outer overlay (full-drawer backdrop).
+        var overlay = document.createElement('div');
+        overlay.className = 'aica-svg-picker';
+
+        // White card panel.
+        var panel = document.createElement('div');
+        panel.className = 'aica-svg-picker__panel';
+
+        // --- Preview ---
+        var preview = document.createElement('div');
+        preview.className = 'aica-svg-picker__preview';
+        renderAvatar(preview, cur);
+        panel.appendChild(preview);
+
+        var refreshPreview = function() {
+            renderAvatar(preview, cur);
+        };
+
+        // --- Gender trio ---
+        var genderRow = document.createElement('div');
+        genderRow.className = 'aica-svg-picker__row';
+        var genderLabel = document.createElement('span');
+        genderLabel.className = 'aica-svg-picker__label';
+        genderLabel.textContent = 'Presentation';
+        genderRow.appendChild(genderLabel);
+        var trio = document.createElement('div');
+        trio.className = 'aica-av-trio';
+        [{key: 'f', label: 'Feminine'}, {key: 'n', label: 'Neutral'}, {key: 'm', label: 'Masculine'}].forEach(function(g) {
+            var btn = document.createElement('button');
+            btn.className = 'aica-av-trio__btn' + (cur.gender === g.key ? ' aica-av-trio__btn--active' : '');
+            btn.type = 'button';
+            btn.textContent = g.label;
+            btn.addEventListener('click', function() {
+                cur.gender = g.key;
+                cur.styleIdx = 0;
+                trio.querySelectorAll('.aica-av-trio__btn').forEach(function(b) {
+                    b.classList.remove('aica-av-trio__btn--active');
+                });
+                btn.classList.add('aica-av-trio__btn--active');
+                // Refresh style swatches.
+                updateStyleSwatches();
+                refreshPreview();
+            });
+            trio.appendChild(btn);
+        });
+        genderRow.appendChild(trio);
+        panel.appendChild(genderRow);
+
+        // --- Skin swatches ---
+        var skinRow = document.createElement('div');
+        skinRow.className = 'aica-svg-picker__row';
+        var skinLabel = document.createElement('span');
+        skinLabel.className = 'aica-svg-picker__label';
+        skinLabel.textContent = 'Skin';
+        skinRow.appendChild(skinLabel);
+        var skinSwatches = document.createElement('div');
+        skinSwatches.className = 'aica-av-swatches';
+        SKIN_COLORS.forEach(function(color, idx) {
+            var sw = document.createElement('button');
+            sw.className = 'aica-av-swatch' + (cur.skinIdx === idx ? ' aica-av-swatch--active' : '');
+            sw.type = 'button';
+            sw.style.background = color;
+            sw.setAttribute('aria-label', 'Skin tone ' + (idx + 1));
+            sw.addEventListener('click', function() {
+                cur.skinIdx = idx;
+                skinSwatches.querySelectorAll('.aica-av-swatch').forEach(function(s) {
+                    s.classList.remove('aica-av-swatch--active');
+                });
+                sw.classList.add('aica-av-swatch--active');
+                refreshPreview();
+            });
+            skinSwatches.appendChild(sw);
+        });
+        skinRow.appendChild(skinSwatches);
+        panel.appendChild(skinRow);
+
+        // --- Hair style swatches ---
+        var styleRow = document.createElement('div');
+        styleRow.className = 'aica-svg-picker__row';
+        var styleLabel = document.createElement('span');
+        styleLabel.className = 'aica-svg-picker__label';
+        styleLabel.textContent = 'Hair style';
+        styleRow.appendChild(styleLabel);
+        var styleSwatches = document.createElement('div');
+        styleSwatches.className = 'aica-av-swatches aica-av-swatches--styles';
+
+        var STYLE_NAMES = {
+            n: ['Natural coils', 'Short crop', 'Medium wavy'],
+            f: ['Bob', 'Long straight', 'Braided updo'],
+            m: ['Short crop', 'Fade taper', 'Textured wave'],
+        };
+
+        var buildStyleSwatch = function(styleIdx) {
+            var sw = document.createElement('button');
+            sw.className = 'aica-av-style-swatch' + (cur.styleIdx === styleIdx ? ' aica-av-style-swatch--active' : '');
+            sw.type = 'button';
+            var names = STYLE_NAMES[cur.gender] || STYLE_NAMES.n;
+            sw.setAttribute('aria-label', names[styleIdx] || ('Style ' + (styleIdx + 1)));
+            // Mini face SVG thumbnail.
+            var thumbPrefs = Object.assign({}, cur, {styleIdx: styleIdx});
+            sw.innerHTML = buildFaceSVG(thumbPrefs);
+            sw.addEventListener('click', function() {
+                cur.styleIdx = styleIdx;
+                styleSwatches.querySelectorAll('.aica-av-style-swatch').forEach(function(s) {
+                    s.classList.remove('aica-av-style-swatch--active');
+                });
+                sw.classList.add('aica-av-style-swatch--active');
+                refreshPreview();
+            });
+            return sw;
+        };
+
+        var updateStyleSwatches = function() {
+            styleSwatches.innerHTML = '';
+            [0, 1, 2].forEach(function(i) {
+                styleSwatches.appendChild(buildStyleSwatch(i));
+            });
+        };
+        updateStyleSwatches();
+        styleRow.appendChild(styleSwatches);
+        panel.appendChild(styleRow);
+
+        // --- Hair colour swatches ---
+        var hairRow = document.createElement('div');
+        hairRow.className = 'aica-svg-picker__row';
+        var hairLabel = document.createElement('span');
+        hairLabel.className = 'aica-svg-picker__label';
+        hairLabel.textContent = 'Hair colour';
+        hairRow.appendChild(hairLabel);
+        var hairSwatches = document.createElement('div');
+        hairSwatches.className = 'aica-av-swatches';
+        var HAIR_NAMES = ['Black', 'Dark brown', 'Auburn', 'Blonde', 'Red', 'Grey'];
+        HAIR_COLORS.forEach(function(color, idx) {
+            var sw = document.createElement('button');
+            sw.className = 'aica-av-swatch' + (cur.hairIdx === idx ? ' aica-av-swatch--active' : '');
+            sw.type = 'button';
+            sw.style.background = color;
+            sw.setAttribute('aria-label', HAIR_NAMES[idx] || ('Hair colour ' + (idx + 1)));
+            sw.addEventListener('click', function() {
+                cur.hairIdx = idx;
+                hairSwatches.querySelectorAll('.aica-av-swatch').forEach(function(s) {
+                    s.classList.remove('aica-av-swatch--active');
+                });
+                sw.classList.add('aica-av-swatch--active');
+                // Refresh style thumbnails to show new colour.
+                updateStyleSwatches();
+                refreshPreview();
+            });
+            hairSwatches.appendChild(sw);
+        });
+        hairRow.appendChild(hairSwatches);
+        panel.appendChild(hairRow);
+
+        // --- Done button ---
+        var doneBtn = document.createElement('button');
+        doneBtn.className = 'aica-svg-picker__done';
+        doneBtn.type = 'button';
+        doneBtn.textContent = 'Save';
+        doneBtn.addEventListener('click', function() {
+            saveAvatarPrefs(cur);
+            applyAvatarPrefs(cur);
+            overlay.remove();
+        });
+        panel.appendChild(doneBtn);
+
+        overlay.appendChild(panel);
+        drawer.appendChild(overlay);
+    };
 
     /** @type {boolean} True if the toggle button was just dragged (not clicked) */
     let toggleDragged = false;
@@ -66,6 +402,12 @@ define([
 
     /** @type {HTMLElement|null} Currently playing TTS message element */
     let speakingEl = null;
+    /** @type {Function|null} Cleanup for Web Audio mouth sync */
+    let mouthSyncCleanup = null;
+    /** @type {HTMLElement|null} Message element whose content has been replaced with word spans */
+    let highlightingEl = null;
+    /** @type {{el: HTMLElement, start: number, end: number}|null} Currently highlighted word span */
+    let activeWordSpan = null;
 
     /**
      * Initialize UI references.
@@ -88,6 +430,7 @@ define([
         applyPositionOffset();
         initDrag();
         initResize();
+        initSVGAvatars();
     };
 
     /**
@@ -187,68 +530,45 @@ define([
             } catch (e) { /**/ }
         };
 
-        // Header drag (existing).
-        header.addEventListener('mousedown', function(e) {
+        // Unified Pointer Events drag (mouse, touch, stylus) — works across all input types.
+        // e.preventDefault() on pointerdown also prevents scroll during touch drag.
+        header.addEventListener('pointerdown', function(e) {
             if (e.target.closest('button, a')) {
                 return;
             }
             e.preventDefault();
             onDragStart(e.clientX, e.clientY, false);
         });
-        document.addEventListener('mousemove', function(e) {
+        document.addEventListener('pointermove', function(e) {
             onDragMove(e.clientX, e.clientY);
         });
-        document.addEventListener('mouseup', onDragEnd);
-
-        header.addEventListener('touchstart', function(e) {
-            if (e.target.closest('button, a')) {
-                return;
-            }
-            const t = e.touches[0];
-            onDragStart(t.clientX, t.clientY, false);
-        }, {passive: true});
-        document.addEventListener('touchmove', function(e) {
-            if (!dragging) {
-                return;
-            }
-            const t = e.touches[0];
-            onDragMove(t.clientX, t.clientY);
-        }, {passive: true});
-        document.addEventListener('touchend', onDragEnd);
+        document.addEventListener('pointerup', onDragEnd);
+        document.addEventListener('pointercancel', onDragEnd);
 
         // Toggle button drag — allows repositioning the widget via the avatar button.
         if (toggle) {
-            toggle.addEventListener('mousedown', function(e) {
+            toggle.addEventListener('pointerdown', function(e) {
                 e.preventDefault();
                 onDragStart(e.clientX, e.clientY, true);
             });
-            toggle.addEventListener('touchstart', function(e) {
-                const t = e.touches[0];
-                onDragStart(t.clientX, t.clientY, true);
-            }, {passive: true});
         }
 
         // Drawer body drag — allows dragging from non-interactive areas outside the header
         // (hint bar, starters background, quiz setup labels, etc.).
         // Messages area excluded to preserve scroll; header excluded (has its own handler).
+        // Resize handles excluded to prevent drag/resize conflict.
         if (drawer) {
             const DRAG_EXCLUDE = 'button, a, input, textarea, select, ' +
                 '.local-ai-course-assistant__messages, ' +
-                '.local-ai-course-assistant__header';
-            drawer.addEventListener('mousedown', function(e) {
+                '.local-ai-course-assistant__header, ' +
+                '.aica-resize-handle';
+            drawer.addEventListener('pointerdown', function(e) {
                 if (e.target.closest(DRAG_EXCLUDE)) {
                     return;
                 }
                 e.preventDefault();
                 onDragStart(e.clientX, e.clientY, false);
             });
-            drawer.addEventListener('touchstart', function(e) {
-                if (e.target.closest(DRAG_EXCLUDE)) {
-                    return;
-                }
-                const t = e.touches[0];
-                onDragStart(t.clientX, t.clientY, false);
-            }, {passive: true});
         }
     };
 
@@ -272,7 +592,7 @@ define([
         let startX, startY, startW, startH;
 
         handles.forEach(function(handle) {
-            handle.addEventListener('mousedown', function(e) {
+            handle.addEventListener('pointerdown', function(e) {
                 isResizing = true;
                 resizeHandle = handle;
                 startX = e.clientX;
@@ -289,7 +609,7 @@ define([
             });
         });
 
-        document.addEventListener('mousemove', function(e) {
+        document.addEventListener('pointermove', function(e) {
             if (!isResizing || !resizeHandle) {
                 return;
             }
@@ -312,7 +632,7 @@ define([
             }
         });
 
-        document.addEventListener('mouseup', function() {
+        document.addEventListener('pointerup', function() {
             if (!isResizing) {
                 return;
             }
@@ -324,6 +644,10 @@ define([
                     height: drawer.style.height,
                 }));
             } catch (e) { /**/ }
+        });
+        document.addEventListener('pointercancel', function() {
+            isResizing = false;
+            resizeHandle = null;
         });
     };
 
@@ -422,10 +746,6 @@ define([
         drawer.setAttribute('aria-hidden', opening ? 'false' : 'true');
         toggle.setAttribute('aria-expanded', opening ? 'true' : 'false');
 
-        if (opening) {
-            input.focus();
-        }
-
         return opening;
     };
 
@@ -444,11 +764,17 @@ define([
      * @param {boolean} recording
      */
     const setMicRecording = function(recording) {
-        if (!micBtn) {
-            return;
+        if (micBtn) {
+            micBtn.classList.toggle('local-ai-course-assistant__btn-mic--recording', recording);
+            micBtn.setAttribute('aria-pressed', recording ? 'true' : 'false');
         }
-        micBtn.classList.toggle('local-ai-course-assistant__btn-mic--recording', recording);
-        micBtn.setAttribute('aria-pressed', recording ? 'true' : 'false');
+        // Also update the starter voice button if present.
+        if (root) {
+            const svBtn = root.querySelector('.aica-starter-voice__btn');
+            if (svBtn) {
+                svBtn.classList.toggle('aica-starter-voice__btn--recording', recording);
+            }
+        }
     };
 
     /**
@@ -593,6 +919,13 @@ define([
             if (btn) {
                 btn.classList.toggle('local-ai-course-assistant__btn-speak--active', on);
             }
+        }
+
+        // Animate the toggle-button and header avatars while TTS is active.
+        if (root) {
+            root.querySelectorAll('.aica-avatar-svg--toggle, .aica-avatar-svg--header').forEach(function(av) {
+                av.classList.toggle('aica-avatar-svg--speaking', !!on);
+            });
         }
     };
 
@@ -870,9 +1203,6 @@ define([
             panel.classList.remove('local-ai-course-assistant__welcome--visible');
             setTimeout(function() {
                 panel.remove();
-                if (input) {
-                    input.focus();
-                }
             }, 300);
         });
     };
@@ -1011,6 +1341,593 @@ define([
         scrollToBottom(true);
     };
 
+    /**
+     * Show the avatar picker overlay in the drawer.
+     *
+     * @param {Array}    avatars       Array of {id, url} objects
+     * @param {string}   currentUrl    URL of the currently selected avatar
+     * @param {Function} onSelect      Called with (avatarId, avatarUrl) when user picks one
+     */
+    const showAvatarPicker = function(avatars, currentUrl, onSelect) {
+        if (!drawer) {
+            return;
+        }
+        // Remove any existing picker.
+        const existing = drawer.querySelector('.aica-avatar-picker');
+        if (existing) {
+            existing.remove();
+        }
+
+        const overlay = document.createElement('div');
+        overlay.className = 'aica-avatar-picker';
+
+        const panel = document.createElement('div');
+        panel.className = 'aica-avatar-picker__panel';
+
+        const title = document.createElement('p');
+        title.className = 'aica-avatar-picker__title';
+        title.textContent = 'Choose your avatar';
+        panel.appendChild(title);
+
+        const grid = document.createElement('div');
+        grid.className = 'aica-avatar-picker__grid';
+
+        avatars.forEach(function(av) {
+            const btn = document.createElement('button');
+            btn.className = 'aica-avatar-option' + (av.url === currentUrl ? ' aica-avatar-option--selected' : '');
+            btn.type = 'button';
+            const img = document.createElement('img');
+            img.src = av.url;
+            img.alt = av.id;
+            btn.appendChild(img);
+            btn.addEventListener('click', function() {
+                overlay.remove();
+                onSelect(av.id, av.url);
+            });
+            grid.appendChild(btn);
+        });
+        panel.appendChild(grid);
+
+        const cancelBtn = document.createElement('button');
+        cancelBtn.className = 'aica-avatar-picker__cancel';
+        cancelBtn.type = 'button';
+        cancelBtn.textContent = 'Cancel';
+        cancelBtn.addEventListener('click', function() {
+            overlay.remove();
+        });
+        panel.appendChild(cancelBtn);
+
+        overlay.appendChild(panel);
+        drawer.appendChild(overlay);
+    };
+
+    /**
+     * Update all avatar img elements to show a new avatar URL.
+     *
+     * @param {string} newUrl The new avatar URL
+     */
+    const updateAvatarImages = function(newUrl) {
+        if (!root) {
+            return;
+        }
+        root.querySelectorAll(
+            '.local-ai-course-assistant__avatar-img, .local-ai-course-assistant__header-avatar, ' +
+            '.local-ai-course-assistant__welcome-avatar'
+        ).forEach(function(img) {
+            img.src = newUrl;
+        });
+    };
+
+    /**
+     * Show the voice mode overlay inside the drawer.
+     *
+     * @param {string}   avatarUrl  URL of the avatar image to display
+     * @param {Function} onEnd      Called when the user clicks the end-session button
+     * @returns {HTMLElement} The overlay element
+     */
+    const showVoiceOverlay = function(avatarUrl, onEnd) {
+        if (!drawer) { return null; }
+
+        // Remove any existing overlay.
+        const existing = drawer.querySelector('.aica-voice-overlay');
+        if (existing) { existing.remove(); }
+
+        const overlay = document.createElement('div');
+        overlay.className = 'aica-voice-overlay';
+
+        // End button (×).
+        const endBtn = document.createElement('button');
+        endBtn.className = 'aica-voice-end';
+        endBtn.type = 'button';
+        endBtn.setAttribute('aria-label', 'End voice session');
+        endBtn.textContent = '×';
+        endBtn.addEventListener('click', function() {
+            if (onEnd) { onEnd(); }
+        });
+        overlay.appendChild(endBtn);
+
+        // Avatar.
+        const avatarWrap = document.createElement('div');
+        avatarWrap.className = 'aica-voice-avatar';
+        const avatarImg = document.createElement('img');
+        avatarImg.src = avatarUrl || '';
+        avatarImg.alt = '';
+        avatarImg.setAttribute('aria-hidden', 'true');
+        avatarWrap.appendChild(avatarImg);
+        overlay.appendChild(avatarWrap);
+
+        // Status pill.
+        const status = document.createElement('div');
+        status.className = 'aica-voice-status';
+        status.textContent = 'Connecting…';
+        overlay.appendChild(status);
+
+        // Transcript scroll area.
+        const transcript = document.createElement('div');
+        transcript.className = 'aica-voice-transcript';
+        overlay.appendChild(transcript);
+
+        drawer.appendChild(overlay);
+        return overlay;
+    };
+
+    /**
+     * Fade out and remove the voice overlay.
+     */
+    const hideVoiceOverlay = function() {
+        if (!drawer) { return; }
+        const overlay = drawer.querySelector('.aica-voice-overlay');
+        if (!overlay) { return; }
+        overlay.style.transition = 'opacity 0.2s ease';
+        overlay.style.opacity = '0';
+        setTimeout(function() { overlay.remove(); }, 220);
+    };
+
+    /**
+     * Update visual state of the voice overlay (avatar animation + status pill).
+     *
+     * @param {string} state 'connecting'|'idle'|'listening'|'speaking'|'disconnected'
+     */
+    const setVoiceState = function(state) {
+        if (!drawer) { return; }
+        const overlay = drawer.querySelector('.aica-voice-overlay');
+        if (!overlay) { return; }
+
+        const avatarWrap = overlay.querySelector('.aica-voice-avatar');
+        const statusEl   = overlay.querySelector('.aica-voice-status');
+
+        if (avatarWrap) {
+            avatarWrap.classList.remove('aica-voice-avatar--listening', 'aica-voice-avatar--speaking');
+            if (state === 'listening') {
+                avatarWrap.classList.add('aica-voice-avatar--listening');
+            } else if (state === 'speaking') {
+                avatarWrap.classList.add('aica-voice-avatar--speaking');
+            }
+        }
+
+        const labels = {
+            connecting:   'Connecting…',
+            idle:         'Ready',
+            listening:    'Listening…',
+            speaking:     'SOLA is speaking…',
+            disconnected: 'Disconnected',
+        };
+        if (statusEl) {
+            statusEl.textContent = labels[state] || state;
+        }
+    };
+
+    /**
+     * Append a transcript line to the voice overlay.
+     *
+     * @param {string} role  'user' | 'assistant'
+     * @param {string} text  Text content
+     */
+    const appendVoiceTranscript = function(role, text) {
+        if (!drawer) { return; }
+        const transcript = drawer.querySelector('.aica-voice-transcript');
+        if (!transcript) { return; }
+
+        // Find or create a line for this role (accumulate assistant deltas into last assistant line).
+        if (role === 'assistant') {
+            const last = transcript.querySelector('.aica-voice-line--assistant:last-child');
+            if (last) {
+                last.textContent += text;
+                transcript.scrollTop = transcript.scrollHeight;
+                return;
+            }
+        }
+
+        const line = document.createElement('div');
+        line.className = 'aica-voice-line aica-voice-line--' + role;
+        line.textContent = text;
+        transcript.appendChild(line);
+        transcript.scrollTop = transcript.scrollHeight;
+    };
+
+    /**
+     * Show the unified settings panel (language, avatar, voice).
+     * Calling again while open closes it (toggle behaviour).
+     *
+     * @param {Object}   config
+     * @param {Object}   config.langs              SUPPORTED_LANGS map
+     * @param {string|null} config.currentLang     ISO 639-1 code or null for English
+     * @param {Array}    config.avatars             [{id, url}]
+     * @param {string}   config.currentAvatarUrl   Currently active avatar URL
+     * @param {boolean}  config.realtimeEnabled     Whether voice mode is on
+     * @param {Object}   callbacks
+     * @param {Function} callbacks.onLangSelect     Called with (code|null, name)
+     * @param {Function} callbacks.onAvatarSelect   Called with (id, url)
+     */
+    const showSettingsPanel = function(config, callbacks) {
+        if (!drawer) {
+            return;
+        }
+
+        // Toggle: if panel already open, close it.
+        const existing = drawer.querySelector('.aica-settings-panel');
+        if (existing) {
+            existing.remove();
+            return;
+        }
+
+        const panel = document.createElement('div');
+        panel.className = 'aica-settings-panel';
+
+        // --- Header ---
+        const header = document.createElement('div');
+        header.className = 'aica-settings-panel__header';
+        const titleEl = document.createElement('span');
+        titleEl.className = 'aica-settings-panel__title';
+        titleEl.textContent = 'Settings';
+        const closeBtn = document.createElement('button');
+        closeBtn.className = 'aica-settings-panel__close';
+        closeBtn.type = 'button';
+        closeBtn.setAttribute('aria-label', 'Close settings');
+        closeBtn.innerHTML =
+            '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18"' +
+            ' fill="currentColor" aria-hidden="true">' +
+            '<path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41' +
+            ' 17.59 19 19 17.59 13.41 12z"/></svg>';
+        closeBtn.addEventListener('click', function() {
+            panel.remove();
+        });
+        header.appendChild(titleEl);
+        header.appendChild(closeBtn);
+        panel.appendChild(header);
+
+        // --- Scrollable content ---
+        const content = document.createElement('div');
+        content.className = 'aica-settings-panel__content';
+
+        // ── Language ──
+        const langSection = document.createElement('div');
+        langSection.className = 'aica-settings-panel__section';
+        const langHead = document.createElement('h3');
+        langHead.className = 'aica-settings-panel__section-title';
+        langHead.textContent = 'Language';
+        langSection.appendChild(langHead);
+
+        const langList = document.createElement('div');
+        langList.className = 'aica-settings-panel__lang-list';
+
+        const enOpt = document.createElement('button');
+        enOpt.type = 'button';
+        enOpt.className = 'aica-settings-panel__lang-opt' +
+            (!config.currentLang ? ' aica-settings-panel__lang-opt--active' : '');
+        enOpt.textContent = 'English (default)';
+        enOpt.addEventListener('click', function() {
+            callbacks.onLangSelect(null, 'English');
+            panel.remove();
+        });
+        langList.appendChild(enOpt);
+
+        Object.keys(config.langs).sort(function(a, b) {
+            return config.langs[a].name.localeCompare(config.langs[b].name);
+        }).forEach(function(code) {
+            const opt = document.createElement('button');
+            opt.type = 'button';
+            opt.className = 'aica-settings-panel__lang-opt' +
+                (config.currentLang === code ? ' aica-settings-panel__lang-opt--active' : '');
+            opt.textContent = config.langs[code].name;
+            opt.addEventListener('click', function() {
+                callbacks.onLangSelect(code, config.langs[code].name);
+                panel.remove();
+            });
+            langList.appendChild(opt);
+        });
+
+        langSection.appendChild(langList);
+        content.appendChild(langSection);
+
+        // ── Avatar ──
+        if (config.avatars && config.avatars.length) {
+            const avatarSection = document.createElement('div');
+            avatarSection.className = 'aica-settings-panel__section';
+            const avatarHead = document.createElement('h3');
+            avatarHead.className = 'aica-settings-panel__section-title';
+            avatarHead.textContent = 'Avatar';
+            avatarSection.appendChild(avatarHead);
+
+            const grid = document.createElement('div');
+            grid.className = 'aica-settings-panel__avatar-grid';
+            config.avatars.forEach(function(av) {
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'aica-settings-panel__avatar-opt' +
+                    (av.url === config.currentAvatarUrl ? ' aica-settings-panel__avatar-opt--selected' : '');
+                const img = document.createElement('img');
+                img.src = av.url;
+                img.alt = av.id;
+                btn.appendChild(img);
+                btn.addEventListener('click', function() {
+                    grid.querySelectorAll('.aica-settings-panel__avatar-opt').forEach(function(b) {
+                        b.classList.remove('aica-settings-panel__avatar-opt--selected');
+                    });
+                    btn.classList.add('aica-settings-panel__avatar-opt--selected');
+                    callbacks.onAvatarSelect(av.id, av.url);
+                    panel.remove();
+                });
+                grid.appendChild(btn);
+            });
+            avatarSection.appendChild(grid);
+            content.appendChild(avatarSection);
+        }
+
+        // ── Voice ──
+        if (config.realtimeEnabled) {
+            const voiceSection = document.createElement('div');
+            voiceSection.className = 'aica-settings-panel__section';
+            const voiceHead = document.createElement('h3');
+            voiceHead.className = 'aica-settings-panel__section-title';
+            voiceHead.textContent = 'Voice';
+            voiceSection.appendChild(voiceHead);
+            const voiceNote = document.createElement('p');
+            voiceNote.className = 'aica-settings-panel__note';
+            voiceNote.textContent = 'Voice settings are managed in the site admin panel.';
+            voiceSection.appendChild(voiceNote);
+            content.appendChild(voiceSection);
+        }
+
+        panel.appendChild(content);
+        drawer.appendChild(panel);
+    };
+
+    /**
+     * Remove any existing suggestion chips from the messages area.
+     */
+    const clearSuggestions = function() {
+        if (!messagesContainer) {
+            return;
+        }
+        messagesContainer.querySelectorAll('.aica-suggestions').forEach(function(el) {
+            el.remove();
+        });
+    };
+
+    /**
+     * Show contextual follow-up suggestion chips after the last assistant message.
+     *
+     * @param {string[]} suggestions  Array of suggestion strings (up to 4)
+     * @param {Function} onSelect     Called with the clicked suggestion text
+     */
+    const showSuggestions = function(suggestions, onSelect) {
+        if (!messagesContainer || !suggestions.length) {
+            return;
+        }
+        clearSuggestions();
+
+        const container = document.createElement('div');
+        container.className = 'aica-suggestions';
+
+        suggestions.forEach(function(text) {
+            const btn = document.createElement('button');
+            btn.className = 'aica-suggestion';
+            btn.type = 'button';
+            btn.textContent = text;
+            btn.addEventListener('click', function() {
+                onSelect(text);
+            });
+            container.appendChild(btn);
+        });
+
+        messagesContainer.appendChild(container);
+        scrollToBottom();
+    };
+
+    /**
+     * Replace a message's content with word-span nodes so words can be highlighted during TTS.
+     * Saves the original innerHTML for restoration.
+     *
+     * @param {HTMLElement} msgEl     The message element
+     * @param {string}      cleanText The plain text (already cleaned for TTS)
+     * @returns {Array|null}          Array of {el, start, end} word descriptors, or null on failure
+     */
+    const startWordHighlight = function(msgEl, cleanText) {
+        const content = msgEl.querySelector('.local-ai-course-assistant__message-content');
+        if (!content || !cleanText) {
+            return null;
+        }
+
+        highlightingEl = msgEl;
+        activeWordSpan = null;
+        msgEl._highlightOriginalHtml = content.innerHTML;
+
+        const wordSpans = [];
+        const frag = document.createDocumentFragment();
+        const re = /\S+/g;
+        let pos = 0;
+        let match;
+        while ((match = re.exec(cleanText)) !== null) {
+            if (match.index > pos) {
+                frag.appendChild(document.createTextNode(cleanText.slice(pos, match.index)));
+            }
+            const span = document.createElement('span');
+            span.className = 'aica-word';
+            span.textContent = match[0];
+            frag.appendChild(span);
+            wordSpans.push({el: span, start: match.index, end: match.index + match[0].length});
+            pos = match.index + match[0].length;
+        }
+        if (pos < cleanText.length) {
+            frag.appendChild(document.createTextNode(cleanText.slice(pos)));
+        }
+
+        content.innerHTML = '';
+        content.appendChild(frag);
+        return wordSpans;
+    };
+
+    /**
+     * Highlight the word at the given character index (from onboundary event).
+     *
+     * @param {Array}  wordSpans Array of {el, start, end} from startWordHighlight
+     * @param {number} charIndex Character index into the clean text
+     */
+    const highlightWordAt = function(wordSpans, charIndex) {
+        let found = null;
+        for (var i = 0; i < wordSpans.length; i++) {
+            if (charIndex >= wordSpans[i].start && charIndex < wordSpans[i].end) {
+                found = wordSpans[i];
+                break;
+            }
+        }
+        if (found === activeWordSpan) {
+            return;
+        }
+        if (activeWordSpan) {
+            activeWordSpan.el.classList.remove('aica-word--active');
+        }
+        activeWordSpan = found;
+        if (found) {
+            found.el.classList.add('aica-word--active');
+        }
+    };
+
+    /**
+     * Restore the message content to its original markdown-rendered HTML.
+     * Clears the active word highlight state.
+     */
+    const stopWordHighlight = function() {
+        if (!highlightingEl) {
+            return;
+        }
+        const content = highlightingEl.querySelector('.local-ai-course-assistant__message-content');
+        if (content && highlightingEl._highlightOriginalHtml !== undefined) {
+            content.innerHTML = highlightingEl._highlightOriginalHtml;
+            delete highlightingEl._highlightOriginalHtml;
+        }
+        highlightingEl = null;
+        activeWordSpan = null;
+    };
+
+    /**
+     * Start Web Audio API driven mouth movement synced to an audio element.
+     * Drives the .aica-mouth-open and .aica-mouth-smile SVG elements in real-time.
+     * Falls back gracefully when Web Audio is unavailable.
+     *
+     * @param {HTMLAudioElement} audioEl The audio element to analyse
+     */
+    const startMouthSync = function(audioEl) {
+        stopMouthSync();
+        if (!root || !audioEl) {
+            return;
+        }
+        var AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (!AudioCtx) {
+            return;
+        }
+        try {
+            var ctx = new AudioCtx();
+            var analyser = ctx.createAnalyser();
+            analyser.fftSize = 256;
+            analyser.smoothingTimeConstant = 0.55;
+            var src = ctx.createMediaElementSource(audioEl);
+            src.connect(analyser);
+            analyser.connect(ctx.destination);
+            var data = new Uint8Array(analyser.frequencyBinCount);
+            var rafId = null;
+            var alive = true;
+
+            var resetMouth = function() {
+                if (!root) {
+                    return;
+                }
+                root.querySelectorAll('.aica-mouth-open').forEach(function(el) {
+                    el.style.transform = 'scaleY(0)';
+                    el.style.opacity = '0';
+                });
+                root.querySelectorAll('.aica-mouth-smile').forEach(function(el) {
+                    el.style.opacity = '';
+                });
+            };
+
+            mouthSyncCleanup = function() {
+                alive = false;
+                if (rafId) {
+                    cancelAnimationFrame(rafId);
+                    rafId = null;
+                }
+                try {
+                    ctx.close();
+                } catch (e) { /**/ }
+                mouthSyncCleanup = null;
+                resetMouth();
+            };
+
+            var update = function() {
+                if (!alive) {
+                    return;
+                }
+                analyser.getByteFrequencyData(data);
+                // Average energy in speech frequency range (~85–860 Hz for fftSize=256 at 44.1kHz).
+                var sum = 0;
+                for (var i = 2; i <= 20; i++) {
+                    sum += data[i];
+                }
+                var amp = Math.min(1, (sum / 19 / 90));
+                root.querySelectorAll('.aica-mouth-open').forEach(function(el) {
+                    el.style.transform = 'scaleY(' + amp + ')';
+                    el.style.opacity = amp > 0.08 ? '1' : '0';
+                });
+                root.querySelectorAll('.aica-mouth-smile').forEach(function(el) {
+                    el.style.opacity = String(Math.max(0.05, 1 - amp * 1.3));
+                });
+                rafId = requestAnimationFrame(update);
+            };
+
+            if (ctx.state === 'suspended') {
+                ctx.resume().then(update);
+            } else {
+                update();
+            }
+        } catch (e) {
+            // Web Audio unavailable — CSS animation handles mouth for browser TTS.
+        }
+    };
+
+    /**
+     * Stop Web Audio mouth sync and reset mouth to resting state.
+     */
+    const stopMouthSync = function() {
+        if (mouthSyncCleanup) {
+            mouthSyncCleanup();
+        }
+    };
+
+    /**
+     * Check whether the conversation starters panel is currently visible.
+     *
+     * @returns {boolean}
+     */
+    const isStartersVisible = function() {
+        if (!root) {
+            return false;
+        }
+        var starters = root.querySelector('.local-ai-course-assistant__starters');
+        return starters ? starters.style.display !== 'none' : false;
+    };
+
     return {
         initUI: initUI,
         isOpen: isOpen,
@@ -1046,5 +1963,21 @@ define([
         showTopicPicker: showTopicPicker,
         hideTopicPicker: hideTopicPicker,
         wasToggleDragged: wasToggleDragged,
+        showAvatarPicker: showAvatarPicker,
+        showSVGAvatarPicker: showSVGAvatarPicker,
+        updateAvatarImages: updateAvatarImages,
+        showSuggestions: showSuggestions,
+        clearSuggestions: clearSuggestions,
+        showVoiceOverlay: showVoiceOverlay,
+        hideVoiceOverlay: hideVoiceOverlay,
+        setVoiceState: setVoiceState,
+        appendVoiceTranscript: appendVoiceTranscript,
+        showSettingsPanel: showSettingsPanel,
+        startWordHighlight: startWordHighlight,
+        highlightWordAt: highlightWordAt,
+        stopWordHighlight: stopWordHighlight,
+        startMouthSync: startMouthSync,
+        stopMouthSync: stopMouthSync,
+        isStartersVisible: isStartersVisible,
     };
 });

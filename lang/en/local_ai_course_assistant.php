@@ -135,6 +135,7 @@ $string['chat:placeholder'] = 'Ask a question...';
 $string['chat:send'] = 'Send';
 $string['chat:close'] = 'Close chat';
 $string['chat:open'] = 'Open SOLA';
+$string['chat:change_avatar'] = 'Change avatar';
 $string['chat:clear'] = 'Clear history';
 $string['chat:clear_confirm'] = 'Are you sure you want to clear your chat history for this course?';
 $string['chat:copy'] = 'Copy conversation';
@@ -388,12 +389,18 @@ $string['chat:quiz_your_answer']        = 'Your answer';
 $string['chat:quiz_correct_answer']     = 'Correct answer';
 
 // Conversation starters.
-$string['chat:starters_label']          = 'Conversation starters';
-$string['chat:starter_help_lesson']     = 'Help me learn';
-$string['chat:starter_quiz']            = 'Take a practice quiz';
-$string['chat:starter_study_plan']      = 'Plan my study session';
-$string['chat:starter_explain']         = 'Explain a concept';
-$string['chat:starter_prompt_coach']    = 'AI Prompt Coach';
+$string['chat:starters_label']              = 'Conversation starters';
+$string['chat:starter_quiz']                = 'Quiz Me';
+$string['chat:starter_explain']             = 'Explain This';
+$string['chat:starter_key_concepts']        = 'Key Concepts';
+$string['chat:starter_study_plan']          = 'Study Plan';
+$string['chat:starter_help_me']             = 'AI Help';
+$string['chat:starter_ell_practice']        = 'Practice Speaking';
+$string['chat:starter_ai_coach']            = 'AI Coach';
+$string['chat:starter_speak']               = 'Speak a starter';
+// Legacy keys kept for backwards compatibility.
+$string['chat:starter_help_lesson']         = 'Explain This';
+$string['chat:starter_prompt_coach']        = 'AI Prompt Coach';
 $string['chat:starter_help_lesson_prompt']  = 'Can you help me understand the current lesson? Give me a summary of the key concepts.';
 $string['chat:starter_study_plan_prompt']   = 'I\'d like to plan my current study session. Please ask me: (1) what I want to accomplish today, and (2) how much time I have available. If we\'ve discussed a study plan before, build on it or update it based on my answers.';
 $string['chat:starter_explain_prompt']      = 'Can you explain the most important concept in this course so far?';
@@ -412,3 +419,29 @@ $string['chat:topic_start']               = 'Continue';
 $string['chat:expand']                  = 'Expand chat';
 $string['chat:fullscreen']              = 'Full screen';
 $string['chat:exitfullscreen']          = 'Exit full screen';
+
+// Globe language picker in header.
+$string['chat:language']                = 'Change language';
+$string['chat:settings_panel']          = 'Settings';
+$string['chat:settings_language']       = 'Language';
+$string['chat:settings_avatar']         = 'Avatar';
+$string['chat:settings_voice']          = 'Voice';
+$string['chat:settings_voice_admin']    = 'Voice settings are managed in the site admin panel.';
+
+// Voice mode (OpenAI Realtime).
+$string['chat:voice_mode']              = 'Voice mode';
+$string['chat:voice_end']               = 'End voice session';
+$string['chat:voice_connecting']        = 'Connecting...';
+$string['chat:voice_listening']         = 'Listening...';
+$string['chat:voice_speaking']          = 'SOLA is speaking...';
+$string['chat:voice_idle']              = 'Ready';
+$string['chat:voice_error']             = 'Voice connection failed. Please check your settings.';
+
+// Voice mode settings.
+$string['settings:realtime_heading']      = 'Voice Mode (OpenAI Realtime)';
+$string['settings:realtime_enabled']      = 'Enable Voice Mode';
+$string['settings:realtime_enabled_desc'] = 'Allows students to have real-time voice conversations with SOLA. Requires an OpenAI API key.';
+$string['settings:realtime_apikey']       = 'OpenAI API Key (Voice)';
+$string['settings:realtime_apikey_desc']  = 'Leave blank to use the main API key when provider is set to OpenAI.';
+$string['settings:realtime_voice']        = 'SOLA Voice';
+$string['settings:realtime_voice_desc']   = 'Voice used for real-time speech output.';

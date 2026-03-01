@@ -26,8 +26,9 @@ define([
     'local_ai_course_assistant/sse_client',
     'local_ai_course_assistant/repository',
     'local_ai_course_assistant/speech',
+    'local_ai_course_assistant/realtime',
     'core/str',
-], function(UI, SSE, Repo, Speech, Str) {
+], function(UI, SSE, Repo, Speech, Realtime, Str) {
 
     /** @type {Array} Quiz topics parsed from data attribute */
     let quizTopics = [];
@@ -56,6 +57,8 @@ define([
     let currentPageId = 0;
     /** @type {string} Title of the current resource page (empty if on course-level page) */
     let currentPageTitle = '';
+    /** @type {HTMLAudioElement|null} Currently playing OpenAI TTS audio */
+    let currentAudio = null;
 
     /**
      * Initialize the chat module.
@@ -92,6 +95,13 @@ define([
         UI.initUI(root);
         bindEvents();
         initSpeech();
+        // Cache English starter labels before any language update overwrites them.
+        root.querySelectorAll('.local-ai-course-assistant__starter').forEach(function(btn) {
+            var span = btn.querySelector('span:not(.aica-starter-icon)');
+            if (span) {
+                btn.dataset.labelEn = span.textContent.trim();
+            }
+        });
         initLanguage();
 
         // Auto-open on the user's first visit to this course.
@@ -121,10 +131,11 @@ define([
         const stored = Speech.getLang();
 
         if (stored) {
-            // Already has a saved preference — update the label.
+            // Already has a saved preference — update the label and starter texts.
             const info = Speech.getLangInfo(stored);
             if (info) {
                 UI.setLangLabel(info.name);
+                updateStarterTexts(stored);
             }
             return;
         }
@@ -136,8 +147,47 @@ define([
             if (info) {
                 Speech.setLang(detected);
                 UI.setLangLabel(info.name);
+                updateStarterTexts(detected);
             }
         }
+    };
+
+    /**
+     * Update conversation starter button text to match the selected language.
+     * Resets to the original English server-rendered text when langCode is null.
+     *
+     * @param {string|null} langCode ISO 639-1 code, or null for English
+     */
+    const updateStarterTexts = function(langCode) {
+        const rootEl = document.getElementById('local-ai-course-assistant');
+        if (!rootEl) {
+            return;
+        }
+        const labels = Speech.getStarterLabels(langCode);
+        const keyMap = {
+            'quiz':         labels ? labels.quiz         : null,
+            'explain':      labels ? labels.helpLesson   : null, // reuse helpLesson translations
+            'key-concepts': labels ? labels.keyConcepts  : null,
+            'study-plan':   labels ? labels.studyPlan    : null,
+            'ell-practice': labels ? labels.ellPractice  : null,
+            'ai-coach':     labels ? labels.aiCoach      : null,
+            // Legacy starter keys.
+            'help-lesson':  labels ? labels.helpLesson   : null,
+            'help-me':      labels ? labels.helpMe       : null,
+        };
+        rootEl.querySelectorAll('.local-ai-course-assistant__starter').forEach(function(btn) {
+            var span = btn.querySelector('span:not(.aica-starter-icon)');
+            if (!span) {
+                return;
+            }
+            const text = keyMap[btn.dataset.starter];
+            if (text) {
+                span.textContent = text;
+            } else {
+                // Reset to English (stored in data-label-en during init).
+                span.textContent = btn.dataset.labelEn || span.textContent;
+            }
+        });
     };
 
     /**
@@ -165,10 +215,9 @@ define([
         });
 
         // Clear button.
-        els.clearBtn.addEventListener('click', handleClear);
-
-        // Copy button.
-        els.copyBtn.addEventListener('click', handleCopy);
+        if (els.clearBtn) {
+            els.clearBtn.addEventListener('click', handleClear);
+        }
 
         // Expand/collapse button.
         if (els.expandBtn) {
@@ -180,15 +229,36 @@ define([
             els.micBtn.addEventListener('click', handleMic);
         }
 
-        // Language selector button.
-        if (els.langBtn) {
-            els.langBtn.addEventListener('click', handleLangSelect);
+        // Voice starter button (mic button inside the starters overlay).
+        const starterVoiceBtn = els.root ? els.root.querySelector('.aica-starter-voice__btn') : null;
+        if (starterVoiceBtn) {
+            starterVoiceBtn.addEventListener('click', handleMic);
+        }
+
+        // Settings panel button (gear icon) — opens language / avatar / voice settings.
+        const settingsPanelBtn = els.root ? els.root.querySelector('.local-ai-course-assistant__btn-settings-panel') : null;
+        if (settingsPanelBtn) {
+            settingsPanelBtn.addEventListener('click', handleSettingsPanel);
+        }
+
+        // Voice mode button.
+        const voiceBtn = els.root ? els.root.querySelector('.local-ai-course-assistant__btn-voice') : null;
+        if (voiceBtn) {
+            voiceBtn.addEventListener('click', function() {
+                handleVoiceMode(null);
+            });
         }
 
         // Reset/home button.
         const resetBtn = els.root ? els.root.querySelector('.local-ai-course-assistant__btn-reset') : null;
         if (resetBtn) {
             resetBtn.addEventListener('click', handleReset);
+        }
+
+        // Avatar picker button.
+        const avatarBtn = els.root ? els.root.querySelector('.local-ai-course-assistant__btn-avatar') : null;
+        if (avatarBtn) {
+            avatarBtn.addEventListener('click', handleAvatarPicker);
         }
 
         // Conversation starters.
@@ -251,6 +321,14 @@ define([
                 'make it easy to understand.';
         }
 
+        if (starterKey === 'key-concepts') {
+            if (isEmpty) {
+                const pageRef = currentPageTitle ? '"' + currentPageTitle + '"' : 'this course so far';
+                return 'What are the most important concepts I need to master in ' + pageRef + '? Give me a clear, structured overview with brief explanations.';
+            }
+            return 'What are the most important concepts I need to master about "' + topic + '"? Give me a clear, structured overview with brief explanations of each.';
+        }
+
         if (starterKey === 'study-plan') {
             if (isGuided) {
                 return 'I\'d like to plan my study session. Based on my progress, what should I ' +
@@ -264,6 +342,12 @@ define([
             }
             return 'I\'d like to plan a study session focused on "' + topic + '". Please ask me ' +
                 'how much time I have available, then create a focused study plan.';
+        }
+
+        if (starterKey === 'ai-coach') {
+            const pageRef = currentPageTitle ? ' and how AI could apply to "' + currentPageTitle + '"' : '';
+            return 'I\'d like to explore AI' + pageRef + '. Can you help me understand how AI works, ' +
+                'ask questions about AI concepts, or figure out how to use AI tools in my learning and projects?';
         }
 
         return '';
@@ -285,12 +369,35 @@ define([
             return;
         }
 
-        // AI Prompt Coach fires directly without a topic picker.
-        if (starterKey === 'prompt-coach') {
-            const prompt = 'I want to learn how to use AI tools more effectively and responsibly ' +
-                'in my studies. Can you coach me? I\'d love help crafting better prompts, ' +
-                'understanding what AI is good and not so good at, and using it ethically as a ' +
-                'learning partner for this course.';
+        // ELL practice — opens voice mode with ELL coaching instructions.
+        if (starterKey === 'ell-practice') {
+            handleVoiceMode(Realtime.ELL_INSTRUCTIONS);
+            return;
+        }
+
+        // "Help Me" fires directly without a topic picker.
+        if (starterKey === 'help-me') {
+            const prompt = 'I need some help!';
+            UI.getElements().input.value = prompt;
+            UI.autoResizeInput();
+            UI.updateSendButton();
+            handleSend();
+            return;
+        }
+
+        // "Key Concepts" fires directly — no topic picker needed.
+        if (starterKey === 'key-concepts') {
+            const prompt = buildStarterPrompt('key-concepts', '');
+            UI.getElements().input.value = prompt;
+            UI.autoResizeInput();
+            UI.updateSendButton();
+            handleSend();
+            return;
+        }
+
+        // "AI Coach" fires directly — invites the student to explore AI.
+        if (starterKey === 'ai-coach') {
+            const prompt = buildStarterPrompt('ai-coach', '');
             UI.getElements().input.value = prompt;
             UI.autoResizeInput();
             UI.updateSendButton();
@@ -299,9 +406,10 @@ define([
         }
 
         const titleKeyMap = {
-            'help-lesson': 'chat:topic_picker_title_help',
-            'explain':     'chat:topic_picker_title_explain',
-            'study-plan':  'chat:topic_picker_title_study',
+            'help-lesson':  'chat:topic_picker_title_help',
+            'explain':      'chat:topic_picker_title_explain',
+            'study-plan':   'chat:topic_picker_title_study',
+            'key-concepts': 'chat:topic_picker_title_explain',
         };
         const titleKey = titleKeyMap[starterKey] || 'chat:topic_picker_title';
 
@@ -355,6 +463,199 @@ define([
     };
 
     /**
+     * Handle avatar picker button click in the header title — open SVG avatar picker.
+     */
+    const handleAvatarPicker = function() {
+        UI.showSVGAvatarPicker();
+    };
+
+    /**
+     * Handle the settings panel gear button — show language, avatar, and voice settings.
+     */
+    const handleSettingsPanel = function() {
+        const root = UI.getElements().root;
+        if (!root) {
+            return;
+        }
+        let avatars = [];
+        try {
+            const raw = root.dataset.availableavatars;
+            if (raw) { avatars = JSON.parse(raw); }
+        } catch (e) { avatars = []; }
+
+        UI.showSettingsPanel(
+            {
+                langs: Speech.SUPPORTED_LANGS,
+                currentLang: Speech.getLang(),
+                avatars: avatars,
+                currentAvatarUrl: root.dataset.avatarurl || '',
+                realtimeEnabled: root.dataset.realtimeenabled === '1' || root.dataset.realtimeenabled === 'true',
+            },
+            {
+                onLangSelect: function(code, name) {
+                    if (code) {
+                        Speech.setLang(code);
+                    } else {
+                        Speech.clearLang();
+                    }
+                    UI.setLangLabel(name);
+                    updateStarterTexts(code);
+                },
+                onAvatarSelect: function(avatarId, avatarUrl) {
+                    Repo.saveAvatarPreference(avatarId).then(function() {
+                        root.dataset.avatarurl = avatarUrl;
+                        UI.updateAvatarImages(avatarUrl);
+                        return;
+                    }).catch(function() { /**/ });
+                },
+            }
+        );
+    };
+
+    /**
+     * Handle suggestion chip click — fill input and send as new message.
+     *
+     * @param {string} text The suggestion text to send
+     */
+    const handleSuggestionClick = function(text) {
+        UI.clearSuggestions();
+        UI.getElements().input.value = text;
+        UI.autoResizeInput();
+        UI.updateSendButton();
+        handleSend();
+    };
+
+    /**
+     * Start a Realtime voice session with optional custom instructions.
+     *
+     * @param {string|null} instructions System instructions (null = use session default)
+     */
+    const handleVoiceMode = function(instructions) {
+        const root = document.getElementById('local-ai-course-assistant');
+        const avatarUrl = root ? root.dataset.avatarurl : '';
+
+        // Create AudioContext synchronously here, while still inside the user-gesture handler.
+        // iOS Safari and WKWebView (Moodle mobile app) require AudioContext to be created
+        // within a user gesture — by the time the WebSocket open event fires it is too late.
+        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+        let audioCtx = null;
+        if (AudioContextClass) {
+            try {
+                audioCtx = new AudioContextClass({sampleRate: 24000});
+                if (audioCtx.state === 'suspended') {
+                    audioCtx.resume().catch(function() {/**/});
+                }
+            } catch (e) {
+                audioCtx = null;
+            }
+        }
+
+        // Show overlay immediately with connecting state.
+        const endSession = function() {
+            Realtime.disconnect();
+            UI.hideVoiceOverlay();
+        };
+
+        const overlay = UI.showVoiceOverlay(avatarUrl, endSession);
+        UI.setVoiceState('connecting');
+
+        Repo.getRealtimeToken(courseId).then(function(result) {
+            const token = result.token;
+            const voice = result.voice;
+
+            Realtime.connect(
+                token,
+                instructions || '',
+                voice,
+                {
+                    onTranscript: function(role, text) {
+                        UI.appendVoiceTranscript(role, text);
+                    },
+                    onStateChange: function(state) {
+                        UI.setVoiceState(state);
+                        if (state === 'disconnected') {
+                            UI.hideVoiceOverlay();
+                        }
+                    },
+                    onError: function(msg) {
+                        UI.setVoiceState('disconnected');
+                        const errLine = document.createElement('div');
+                        errLine.className = 'aica-voice-line--assistant';
+                        errLine.style.color = '#f87171';
+                        errLine.textContent = msg || 'Voice connection failed.';
+                        const transcript = overlay ? overlay.querySelector('.aica-voice-transcript') : null;
+                        if (transcript) { transcript.appendChild(errLine); }
+                    },
+                },
+                overlay,
+                audioCtx
+            );
+            return;
+        }).catch(function(err) {
+            UI.setVoiceState('disconnected');
+            const errMsg = (err && err.message) ? err.message : 'Could not get voice token.';
+            Str.get_string('chat:voice_error', 'local_ai_course_assistant').then(function(s) {
+                UI.appendVoiceTranscript('assistant', s || errMsg);
+                return;
+            }).catch(function() {
+                UI.appendVoiceTranscript('assistant', errMsg);
+            });
+        });
+    };
+
+    /**
+     * Start a voice session in ELL coaching mode.
+     */
+    const handleELLPractice = function() {
+        handleVoiceMode(Realtime.ELL_INSTRUCTIONS);
+    };
+
+    /**
+     * Try to match a voice transcript to a conversation starter.
+     * Checks translated labels for the active language first, then English keywords.
+     *
+     * @param  {string} transcript Raw STT transcript
+     * @returns {string|null} Starter key (e.g. 'quiz') or null if no match
+     */
+    const matchStarterByVoice = function(transcript) {
+        const lower = transcript.toLowerCase().trim();
+        const enKeywords = {
+            'quiz':         ['quiz', 'test', 'quiz me', 'test me'],
+            'explain':      ['explain', 'explain this', 'explain it'],
+            'key-concepts': ['key concepts', 'key concept', 'concepts', 'main concepts'],
+            'study-plan':   ['study plan', 'study', 'plan', 'schedule'],
+            'ell-practice': ['practice speaking', 'speaking practice', 'practice'],
+            'ai-coach':     ['ai coach', 'learn about ai', 'artificial intelligence', 'ai tools'],
+        };
+        // Check translated labels for the current language first.
+        const labels = Speech.getStarterLabels(Speech.getLang ? Speech.getLang() : null);
+        const labelMap = {
+            quiz:        'quiz',
+            helpLesson:  'explain',
+            keyConcepts: 'key-concepts',
+            studyPlan:   'study-plan',
+            ellPractice: 'ell-practice',
+        };
+        if (labels) {
+            for (const key in labelMap) {
+                if (labels[key] && lower.includes(labels[key].toLowerCase())) {
+                    return labelMap[key];
+                }
+            }
+        }
+        // English keyword fallback.
+        for (const starter in enKeywords) {
+            const words = enKeywords[starter];
+            for (let i = 0; i < words.length; i++) {
+                if (lower.includes(words[i])) {
+                    return starter;
+                }
+            }
+        }
+        return null;
+    };
+
+    /**
      * Handle mic button click — start or stop speech recognition.
      */
     const handleMic = function() {
@@ -372,6 +673,17 @@ define([
                 UI.autoResizeInput();
                 if (isFinal) {
                     UI.setMicRecording(false);
+                    // If starters panel is visible, try to match spoken text to a starter.
+                    if (UI.isStartersVisible()) {
+                        const matched = matchStarterByVoice(transcript);
+                        if (matched) {
+                            UI.getElements().input.value = '';
+                            UI.autoResizeInput();
+                            UI.updateSendButton();
+                            handleStarter({currentTarget: {dataset: {starter: matched}}});
+                            return;
+                        }
+                    }
                 }
             },
             function() {
@@ -401,82 +713,137 @@ define([
     };
 
     /**
+     * Return the OpenAI TTS URL if available, or empty string.
+     *
+     * @returns {string}
+     */
+    const getTtsUrl = function() {
+        const root = document.getElementById('local-ai-course-assistant');
+        return root ? (root.dataset.ttsurl || '') : '';
+    };
+
+    /**
+     * Stop all TTS (both OpenAI audio and browser speech synthesis).
+     */
+    const stopAllTts = function() {
+        if (currentAudio) {
+            currentAudio.pause();
+            currentAudio = null;
+        }
+        Speech.stopSpeaking();
+        UI.stopWordHighlight();
+    };
+
+    /**
+     * Speak text using OpenAI TTS proxy (tts.php), falling back to browser TTS on error.
+     *
+     * @param {string}        text       Plain text to read aloud
+     * @param {string}        ttsUrl     URL of tts.php
+     * @param {Function}      callback   Called when speech ends or fails
+     * @param {Array|null}    wordSpans  From UI.startWordHighlight — for word highlighting
+     * @param {string|null}   cleanText  Clean plain text matching the wordSpans
+     */
+    const speakWithOpenAI = function(text, ttsUrl, callback, wordSpans, cleanText) {
+        const formData = new URLSearchParams();
+        formData.append('text', text.length > 2000 ? text.substring(0, 2000) : text);
+        formData.append('sesskey', sessKey);
+        formData.append('courseid', String(courseId));
+
+        fetch(ttsUrl, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+            body: formData.toString(),
+        })
+        .then(function(res) { return res.json(); })
+        .then(function(data) {
+            if (!data.audio) {
+                Speech.speak(text, callback);
+                return;
+            }
+            try {
+                const byteChars = atob(data.audio);
+                const byteArr = new Uint8Array(byteChars.length);
+                for (var i = 0; i < byteChars.length; i++) {
+                    byteArr[i] = byteChars.charCodeAt(i);
+                }
+                const blob = new Blob([byteArr], {type: data.type || 'audio/mpeg'});
+                const objUrl = URL.createObjectURL(blob);
+                const audio = new Audio(objUrl);
+                currentAudio = audio;
+                // Start Web Audio mouth sync (drives SVG avatar lip movement).
+                UI.startMouthSync(audio);
+                // Proportional word highlighting: estimate char position from playback progress.
+                if (wordSpans && cleanText) {
+                    audio.addEventListener('timeupdate', function() {
+                        if (!audio.duration) { return; }
+                        const charIndex = Math.floor((audio.currentTime / audio.duration) * cleanText.length);
+                        UI.highlightWordAt(wordSpans, charIndex);
+                    });
+                }
+                audio.addEventListener('ended', function() {
+                    URL.revokeObjectURL(objUrl);
+                    currentAudio = null;
+                    UI.stopMouthSync();
+                    if (callback) { callback(); }
+                });
+                audio.addEventListener('error', function() {
+                    URL.revokeObjectURL(objUrl);
+                    currentAudio = null;
+                    UI.stopMouthSync();
+                    Speech.speak(text, callback);
+                });
+                audio.play().catch(function() {
+                    URL.revokeObjectURL(objUrl);
+                    currentAudio = null;
+                    UI.stopMouthSync();
+                    Speech.speak(text, callback);
+                });
+            } catch (e) {
+                Speech.speak(text, callback);
+            }
+        })
+        .catch(function() {
+            Speech.speak(text, callback);
+        });
+    };
+
+    /**
      * Handle TTS speak button click on an assistant message.
+     * Uses OpenAI TTS when available, falls back to browser Web Speech API.
      *
      * @param {string}      text    Plain text content of the message
      * @param {HTMLElement} msgEl   The message element
      * @param {HTMLElement} btnEl   The speak button element (for state)
      */
     const handleSpeak = function(text, msgEl, btnEl) {
-        if (Speech.isSpeaking() && btnEl.classList.contains('local-ai-course-assistant__btn-speak--active')) {
-            Speech.stopSpeaking();
+        if (btnEl.classList.contains('local-ai-course-assistant__btn-speak--active')) {
+            stopAllTts();
             UI.setSpeakingState(msgEl, false);
             return;
         }
+
+        // Stop any other message currently playing.
+        stopAllTts();
 
         UI.setSpeakingState(msgEl, true);
-        Speech.speak(text, function() {
-            UI.setSpeakingState(msgEl, false);
-        });
-    };
-
-    /**
-     * Handle language selector button — show a simple language picker.
-     */
-    const handleLangSelect = function() {
-        const langs = Speech.SUPPORTED_LANGS;
-        const current = Speech.getLang();
-
-        // Build a simple picker overlay inside the drawer.
-        const existing = document.querySelector('.aica-lang-picker');
-        if (existing) {
-            existing.remove();
-            return;
-        }
-
-        const picker = document.createElement('div');
-        picker.className = 'aica-lang-picker';
-        picker.setAttribute('role', 'listbox');
-        picker.setAttribute('aria-label', 'Select language');
-
-        // English (default) option.
-        const enOpt = document.createElement('button');
-        enOpt.className = 'aica-lang-picker__option' + (!current ? ' aica-lang-picker__option--active' : '');
-        enOpt.textContent = 'English (default)';
-        enOpt.addEventListener('click', function() {
-            Speech.clearLang();
-            UI.setLangLabel('English');
-            picker.remove();
-        });
-        picker.appendChild(enOpt);
-
-        Object.keys(langs).sort(function(a, b) {
-            return langs[a].name.localeCompare(langs[b].name);
-        }).forEach(function(code) {
-            const opt = document.createElement('button');
-            opt.className = 'aica-lang-picker__option' + (current === code ? ' aica-lang-picker__option--active' : '');
-            opt.textContent = langs[code].name;
-            opt.addEventListener('click', function() {
-                Speech.setLang(code);
-                UI.setLangLabel(langs[code].name);
-                picker.remove();
-            });
-            picker.appendChild(opt);
-        });
-
-        // Close on outside click.
-        setTimeout(function() {
-            document.addEventListener('click', function closePicker(e) {
-                if (!picker.contains(e.target) && e.target !== UI.getElements().langBtn) {
-                    picker.remove();
-                    document.removeEventListener('click', closePicker);
-                }
-            });
-        }, 50);
-
-        const root = document.getElementById('local-ai-course-assistant');
-        if (root) {
-            root.appendChild(picker);
+        const ttsUrl = getTtsUrl();
+        if (ttsUrl) {
+            const cleanText = Speech.cleanTextForSpeech(text);
+            const wordSpans = UI.startWordHighlight(msgEl, cleanText);
+            speakWithOpenAI(text, ttsUrl, function() {
+                UI.setSpeakingState(msgEl, false);
+                UI.stopWordHighlight();
+            }, wordSpans, cleanText);
+        } else {
+            // Browser TTS: enable word-by-word highlighting via onboundary events.
+            const cleanText = Speech.cleanTextForSpeech(text);
+            const wordSpans = UI.startWordHighlight(msgEl, cleanText);
+            Speech.speak(text, function() {
+                UI.setSpeakingState(msgEl, false);
+                UI.stopWordHighlight();
+            }, wordSpans ? function(charIndex) {
+                UI.highlightWordAt(wordSpans, charIndex);
+            } : null);
         }
     };
 
@@ -744,12 +1111,23 @@ define([
             onDone: function() {
                 UI.showTyping(false);
                 if (fullText) {
-                    UI.finishStreaming(fullText, Speech.isTTSSupported() ? handleSpeak : null);
+                    const NEXT_RE = /\n*\[SOLA_NEXT\]([\s\S]*?)\[\/SOLA_NEXT\]/;
+                    const match = fullText.match(NEXT_RE);
+                    let suggestions = [];
+                    let displayText = fullText;
+                    if (match) {
+                        suggestions = match[1].split('||').map(function(s) { return s.trim(); })
+                            .filter(Boolean).slice(0, 4);
+                        displayText = fullText.replace(NEXT_RE, '').trimEnd();
+                    }
+                    UI.finishStreaming(displayText, (getTtsUrl() || Speech.isTTSSupported()) ? handleSpeak : null);
+                    if (suggestions.length) {
+                        UI.showSuggestions(suggestions, handleSuggestionClick);
+                    }
                 }
                 sending = false;
                 streamController = null;
                 UI.setInputEnabled(true);
-                UI.getElements().input.focus();
             },
             onError: function(errorMsg) {
                 UI.showTyping(false);
