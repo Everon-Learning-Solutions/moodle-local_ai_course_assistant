@@ -48,9 +48,11 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 require_login();
 require_sesskey();
 
-$courseid = required_param('courseid', PARAM_INT);
-$message = required_param('message', PARAM_RAW);
-$lang = optional_param('lang', '', PARAM_ALPHA); // ISO 639-1 language preference (e.g. 'fr', 'es').
+$courseid   = required_param('courseid', PARAM_INT);
+$message    = required_param('message', PARAM_RAW);
+$lang       = optional_param('lang', '', PARAM_ALPHA);      // ISO 639-1 language preference.
+$pageid     = optional_param('pageid', 0, PARAM_INT);       // Course-module ID of the current page.
+$pagetitle  = optional_param('pagetitle', '', PARAM_TEXT);  // Title of the current resource/activity.
 
 // Validate context and capability.
 $context = context_course::instance($courseid);
@@ -173,7 +175,9 @@ try {
     }
 
     // Build system prompt and get history.
-    $systemprompt = context_builder::build_system_prompt($courseid, $userid, $lang, $retrievedchunks);
+    $systemprompt = context_builder::build_system_prompt(
+        $courseid, $userid, $lang, $retrievedchunks, $pageid, $pagetitle
+    );
     $history = conversation_manager::get_history_for_api($conv->id);
 
     // Create provider and stream (uses per-course overrides if configured).

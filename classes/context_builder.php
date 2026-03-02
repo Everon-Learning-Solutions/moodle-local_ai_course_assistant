@@ -53,7 +53,9 @@ class context_builder {
         int $courseid,
         int $userid,
         string $lang = '',
-        array $retrieved_chunks = []
+        array $retrieved_chunks = [],
+        int $pageid = 0,
+        string $pagetitle = ''
     ): string {
         global $DB;
 
@@ -158,6 +160,13 @@ class context_builder {
         // Cache only for non-RAG mode (RAG prompts are query-specific).
         if (!$ragmode) {
             $cache->set($cachekey, $prompt);
+        }
+
+        // Append current-page context AFTER caching — it is per-request, not per-course.
+        if (!empty($pagetitle)) {
+            $prompt .= "\n\n## Current Page\n"
+                . "The student is currently viewing the resource or activity titled: \"{$pagetitle}\". "
+                . "When relevant, tailor your explanations and examples to this specific page or topic.";
         }
 
         return $prompt;

@@ -318,6 +318,14 @@
     animation-delay: 0.4s;
 }
 
+/* Quiz-locked input state */
+.local-ai-course-assistant__input[disabled] {
+    background: #f3f4f6;
+    color: #9ca3af;
+    cursor: not-allowed;
+    border-color: #e5e7eb;
+}
+
 /* Input area */
 .local-ai-course-assistant__input-area {
     display: flex;

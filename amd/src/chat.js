@@ -57,6 +57,8 @@ define([
     let currentPageId = 0;
     /** @type {string} Title of the current resource page (empty if on course-level page) */
     let currentPageTitle = '';
+    /** @type {boolean} Whether SOLA is locked due to a Moodle quiz attempt/view page */
+    let quizLocked = false;
     /** @type {HTMLAudioElement|null} Currently playing OpenAI TTS audio */
     let currentAudio = null;
 
@@ -75,6 +77,7 @@ define([
         firstName = root.dataset.firstname || '';
         currentPageId = parseInt(root.dataset.currentPageId, 10) || 0;
         currentPageTitle = root.dataset.currentPageTitle || '';
+        quizLocked = root.dataset.quizLocked === '1';
 
         // Parse quiz topics from data attribute.
         try {
@@ -965,6 +968,21 @@ define([
             return;
         }
         const opened = UI.toggleDrawer();
+        if (opened && quizLocked && !historyLoaded) {
+            // Show quiz-locked notice instead of normal history/starters flow.
+            // Explicitly clear any messages to prevent previous chat from being visible (cheating risk).
+            historyLoaded = true;
+            UI.clearMessages();
+            Str.get_string('chat:quiz_locked', 'local_ai_course_assistant').then(function(msg) {
+                UI.addMessage('assistant', msg, null);
+                return;
+            }).catch(function() {
+                UI.addMessage('assistant',
+                    'SOLA is paused during quizzes to support academic integrity. Good luck!', null);
+            });
+            UI.setInputEnabled(false);
+            return;
+        }
         if (opened && !historyLoaded) {
             loadHistory();
             checkAndShowIntro();
@@ -1055,6 +1073,9 @@ define([
      * Handle sending a message.
      */
     const handleSend = function() {
+        if (quizLocked) {
+            return;
+        }
         const text = UI.getInputValue();
         if (!text || sending) {
             return;
@@ -1083,7 +1104,7 @@ define([
         // Accumulated response text.
         let fullText = '';
 
-        // Start SSE stream, including language preference if set.
+        // Start SSE stream, including language preference and page context if available.
         const postData = {
             sesskey: sessKey,
             courseid: courseId,
@@ -1092,6 +1113,12 @@ define([
         const currentLang = Speech.getLang();
         if (currentLang) {
             postData.lang = currentLang;
+        }
+        if (currentPageId) {
+            postData.pageid = currentPageId;
+        }
+        if (currentPageTitle) {
+            postData.pagetitle = currentPageTitle;
         }
 
         streamController = SSE.startStream(sseUrl, postData, {

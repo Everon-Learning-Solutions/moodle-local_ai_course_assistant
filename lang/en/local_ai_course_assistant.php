@@ -436,6 +436,7 @@ $string['chat:voice_listening']         = 'Listening...';
 $string['chat:voice_speaking']          = 'SOLA is speaking...';
 $string['chat:voice_idle']              = 'Ready';
 $string['chat:voice_error']             = 'Voice connection failed. Please check your settings.';
+$string['chat:quiz_locked']             = 'SOLA is paused during quizzes to support academic integrity. Good luck!';
 
 // Voice mode settings.
 $string['settings:realtime_heading']      = 'Voice Mode (OpenAI Realtime)';

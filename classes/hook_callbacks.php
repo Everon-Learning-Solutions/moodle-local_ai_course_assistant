@@ -31,7 +31,7 @@ class hook_callbacks {
      * @param \core\hook\output\before_footer_html_generation $hook
      */
     public static function inject_chat_widget(\core\hook\output\before_footer_html_generation $hook): void {
-        global $PAGE, $USER, $OUTPUT;
+        global $PAGE, $USER, $OUTPUT, $DB;
 
         // Check if plugin is enabled.
         if (!get_config('local_ai_course_assistant', 'enabled')) {
@@ -135,9 +135,25 @@ class hook_callbacks {
         // Detect current module context (resource/activity page).
         $currentpageid = 0;
         $currentpagetitle = '';
+        $modname = '';
+        $pagetype = $PAGE->pagetype ?? '';
         if ($context->contextlevel === CONTEXT_MODULE && !empty($PAGE->cm)) {
-            $currentpageid = (int)$PAGE->cm->id;
+            $currentpageid    = (int)$PAGE->cm->id;
             $currentpagetitle = (string)($PAGE->cm->name ?? '');
+            $modname          = (string)($PAGE->cm->modname ?? '');
+        }
+
+        // Lock SOLA during summative quiz view/attempt pages.
+        // Practice and formative quizzes (grade = 0 in gradebook) are excluded.
+        // Quiz review pages are always allowed — student is learning from completed feedback.
+        $quizlocked = false;
+        if ($modname === 'quiz' && !empty($PAGE->cm) && (
+            strpos($pagetype, 'attempt') !== false ||
+            strpos($pagetype, 'view') !== false
+        )) {
+            $quizrecord = $DB->get_record('quiz', ['id' => $PAGE->cm->instance], 'grade', IGNORE_MISSING);
+            $issummative = !empty($quizrecord) && (float)$quizrecord->grade > 0;
+            $quizlocked = $issummative;
         }
 
         // Position offsets for fine-grained widget placement.
@@ -177,6 +193,9 @@ class hook_callbacks {
             'firstname'          => $USER->firstname,
             'currentpageid'      => $currentpageid,
             'currentpagetitle'   => $currentpagetitle,
+            'modname'            => $modname,
+            'pagetype'           => $pagetype,
+            'quizlocked'         => $quizlocked,
             'realtimeenabled'    => $realtimeenabled,
             'ttsurl'             => $ttsurl,
         ];
