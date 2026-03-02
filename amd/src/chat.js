@@ -579,12 +579,7 @@ define([
                     },
                     onError: function(msg) {
                         UI.setVoiceState('disconnected');
-                        const errLine = document.createElement('div');
-                        errLine.className = 'aica-voice-line--assistant';
-                        errLine.style.color = '#f87171';
-                        errLine.textContent = msg || 'Voice connection failed.';
-                        const transcript = overlay ? overlay.querySelector('.aica-voice-transcript') : null;
-                        if (transcript) { transcript.appendChild(errLine); }
+                        UI.appendVoiceTranscript('assistant', msg || 'Voice connection failed.');
                     },
                 },
                 overlay,

@@ -1765,6 +1765,8 @@
     height: 100%;
     border-radius: 50%;
     display: block;
+    object-fit: cover;
+    object-position: center top;
 }
 
 .aica-settings-panel__note {
@@ -1772,6 +1774,31 @@
     color: #6b7280;
     margin: 0;
     line-height: 1.5;
+}
+
+.aica-settings-panel__footer {
+    flex: 0 0 auto;
+    padding: 10px 16px 14px;
+    border-top: 1px solid #e5e7eb;
+}
+
+.aica-settings-panel__save {
+    width: 100%;
+    padding: 9px 16px;
+    background: #4a6cf7;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background .15s;
+}
+
+@media (hover: hover) {
+    .aica-settings-panel__save:hover {
+        background: #3a5ce5;
+    }
 }
 
 /* =========================================================
@@ -1901,21 +1928,19 @@
 }
 
 /* =========================================================
-   Voice overlay
+   Voice bar (minimalist) — slim bar above input area
    ========================================================= */
 
-.aica-voice-overlay {
-    position: absolute;
-    inset: 0;
-    z-index: 150;
-    background: linear-gradient(160deg, #1a1a2e 0%, #16213e 100%);
+.aica-voice-bar {
     display: flex;
-    flex-direction: column;
     align-items: center;
-    padding: 20px 16px 16px;
-    gap: 12px;
-    border-radius: inherit;
-    animation: aica-fade-in 0.25s ease;
+    gap: 10px;
+    padding: 0 12px;
+    height: 46px;
+    background: #eef2ff;
+    border-top: 1px solid #dde3f5;
+    flex-shrink: 0;
+    animation: aica-fade-in 0.2s ease;
 }
 
 @keyframes aica-fade-in {
@@ -1923,109 +1948,110 @@
     to   { opacity: 1; }
 }
 
-.aica-voice-end {
-    position: absolute;
-    top: 12px;
-    right: 12px;
-    background: rgba(255, 255, 255, 0.12);
-    border: none;
-    color: #fff;
-    width: 30px;
-    height: 30px;
-    border-radius: 50%;
-    cursor: pointer;
-    font-size: 16px;
+/* Waveform visualiser */
+.aica-voice-bar__wave {
     display: flex;
     align-items: center;
-    justify-content: center;
-    transition: background 0.15s;
+    gap: 2px;
+    height: 20px;
+    flex-shrink: 0;
+}
+
+.aica-voice-bar__wave span {
+    display: block;
+    width: 3px;
+    border-radius: 2px;
+    background: #4a6cf7;
+    height: 3px;
+    transition: height 0.08s ease;
+}
+
+/* Connecting / idle: flat bars */
+.aica-voice-bar--connecting .aica-voice-bar__wave span,
+.aica-voice-bar--idle .aica-voice-bar__wave span,
+.aica-voice-bar--disconnected .aica-voice-bar__wave span {
+    height: 3px;
+}
+
+/* Listening: staggered pulse */
+.aica-voice-bar--listening .aica-voice-bar__wave span {
+    animation: aica-wave-pulse 1s ease-in-out infinite;
+}
+.aica-voice-bar--listening .aica-voice-bar__wave span:nth-child(2) { animation-delay: 0.12s; }
+.aica-voice-bar--listening .aica-voice-bar__wave span:nth-child(3) { animation-delay: 0.24s; }
+.aica-voice-bar--listening .aica-voice-bar__wave span:nth-child(4) { animation-delay: 0.36s; }
+.aica-voice-bar--listening .aica-voice-bar__wave span:nth-child(5) { animation-delay: 0.48s; }
+
+@keyframes aica-wave-pulse {
+    0%, 100% { height: 3px; }
+    50%       { height: 14px; }
+}
+
+/* Speaking: audio level (--aica-voice-level 0–1) drives bar heights */
+.aica-voice-bar--speaking .aica-voice-bar__wave span:nth-child(1),
+.aica-voice-bar--speaking .aica-voice-bar__wave span:nth-child(5) {
+    height: calc(var(--aica-voice-level, 0.05) * 10px + 3px);
+}
+.aica-voice-bar--speaking .aica-voice-bar__wave span:nth-child(2),
+.aica-voice-bar--speaking .aica-voice-bar__wave span:nth-child(4) {
+    height: calc(var(--aica-voice-level, 0.05) * 16px + 3px);
+}
+.aica-voice-bar--speaking .aica-voice-bar__wave span:nth-child(3) {
+    height: calc(var(--aica-voice-level, 0.05) * 20px + 3px);
+}
+
+/* Status text */
+.aica-voice-status {
+    flex: 1;
+    font-size: 12px;
+    color: #4b5563;
+    letter-spacing: 0.02em;
+}
+
+/* End button */
+.aica-voice-end {
+    background: transparent;
+    border: 1px solid #9ca3af;
+    color: #374151;
+    padding: 3px 10px;
+    border-radius: 12px;
+    cursor: pointer;
+    font-size: 11px;
+    font-weight: 500;
+    transition: border-color 0.15s, color 0.15s;
+    flex-shrink: 0;
 }
 
 @media (hover: hover) {
     .aica-voice-end:hover {
-        background: rgba(255, 255, 255, 0.25);
+        border-color: #ef4444;
+        color: #ef4444;
     }
 }
 
-.aica-voice-avatar {
-    width: 120px;
-    height: 120px;
-    position: relative;
-    border-radius: 50%;
-    flex-shrink: 0;
-}
-
-.aica-voice-avatar img {
-    width: 100%;
-    height: 100%;
-    border-radius: 50%;
-    display: block;
-    object-fit: cover;
-}
-
-.aica-voice-avatar::after {
-    content: '';
-    position: absolute;
-    inset: -6px;
-    border-radius: 50%;
-    border: 3px solid #4a6cf7;
-    opacity: 0;
-    transition: opacity 0.2s;
-}
-
-.aica-voice-avatar--speaking::after {
-    opacity: 1;
-    animation: aica-ring-pulse 0.9s ease infinite;
-}
-
-.aica-voice-avatar--speaking img {
-    animation: aica-bounce 0.45s ease infinite alternate;
-}
-
-.aica-voice-avatar--listening::after {
-    opacity: 0.5;
-    animation: aica-ring-pulse 1.8s ease infinite;
-}
-
-@keyframes aica-bounce {
-    from { transform: translateY(0) scale(1); }
-    to   { transform: translateY(-9px) scale(1.04); }
-}
-
-@keyframes aica-ring-pulse {
-    0%, 100% { transform: scale(1); opacity: 0.8; }
-    50%       { transform: scale(1.14); opacity: 0.25; }
-}
-
-.aica-voice-transcript {
-    flex: 1;
-    width: 100%;
-    overflow-y: auto;
-    -webkit-overflow-scrolling: touch;
+/* Voice transcript messages in the main messages area */
+.aica-voice-msg {
     display: flex;
-    flex-direction: column;
-    gap: 8px;
-    padding: 4px 0;
-    min-height: 0;
+    padding: 4px 14px;
+    max-width: 100%;
+    box-sizing: border-box;
 }
-
-.aica-voice-line--assistant {
-    color: #e0e7ff;
-    font-size: 13px;
+.aica-voice-msg--assistant {
+    justify-content: flex-start;
+}
+.aica-voice-msg--user {
+    justify-content: flex-end;
+}
+.aica-voice-msg__text {
+    font-size: 13.5px;
     line-height: 1.5;
+    color: #1f2937;
+    max-width: 85%;
 }
-
-.aica-voice-line--user {
-    color: #9ca3af;
-    font-size: 12px;
-    text-align: right;
-}
-
-.aica-voice-status {
-    font-size: 12px;
-    color: #94a3b8;
-    letter-spacing: 0.03em;
-    flex-shrink: 0;
+.aica-voice-msg--user .aica-voice-msg__text {
+    color: #6b7280;
+    font-size: 12.5px;
+    font-style: italic;
 }
 
 /* ==========================================================
@@ -2044,6 +2070,16 @@
     display: block;
     width: 100%;
     height: 100%;
+}
+
+/* Preset avatar img (when no generated SVG) */
+.aica-avatar-svg img {
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    display: block;
+    object-fit: cover;
+    object-position: center top;
 }
 
 /* Hide fallback img when SVG is rendered */

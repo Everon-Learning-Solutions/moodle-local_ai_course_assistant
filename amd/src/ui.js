@@ -1402,7 +1402,9 @@ define([
     };
 
     /**
-     * Update all avatar img elements to show a new avatar URL.
+     * Update all avatar displays to show a new preset avatar URL.
+     * Clears any generated SVG avatar and removes the localStorage SVG pref
+     * so the preset image persists on reload.
      *
      * @param {string} newUrl The new avatar URL
      */
@@ -1410,6 +1412,18 @@ define([
         if (!root) {
             return;
         }
+        // Clear the stored SVG avatar pref so the preset persists on reload.
+        try { localStorage.removeItem(AVATAR_KEY); } catch (e) { /**/ }
+
+        // Replace SVG content in aica-avatar-svg containers with the preset img.
+        root.querySelectorAll('.aica-avatar-svg').forEach(function(container) {
+            container.classList.remove('aica-avatar-svg--has-svg');
+            container.innerHTML = '<img src="' + newUrl + '" alt="" aria-hidden="true" ' +
+                'style="width:100%;height:100%;border-radius:50%;display:block;' +
+                'object-fit:cover;object-position:center top;" />';
+        });
+
+        // Also update any standalone avatar img elements (welcome screen etc).
         root.querySelectorAll(
             '.local-ai-course-assistant__avatar-img, .local-ai-course-assistant__header-avatar, ' +
             '.local-ai-course-assistant__welcome-avatar'
@@ -1421,66 +1435,66 @@ define([
     /**
      * Show the voice mode overlay inside the drawer.
      *
-     * @param {string}   avatarUrl  URL of the avatar image to display
+     * @param {string}   avatarUrl  URL of the avatar image (unused in bar design; header avatar animates)
      * @param {Function} onEnd      Called when the user clicks the end-session button
-     * @returns {HTMLElement} The overlay element
+     * @returns {HTMLElement} The bar element (passed to Realtime as overlayRoot for --aica-voice-level)
      */
     const showVoiceOverlay = function(avatarUrl, onEnd) {
         if (!drawer) { return null; }
 
-        // Remove any existing overlay.
-        const existing = drawer.querySelector('.aica-voice-overlay');
+        // Remove any existing bar.
+        const existing = drawer.querySelector('.aica-voice-bar');
         if (existing) { existing.remove(); }
 
-        const overlay = document.createElement('div');
-        overlay.className = 'aica-voice-overlay';
+        const bar = document.createElement('div');
+        bar.className = 'aica-voice-bar';
 
-        // End button (×).
+        // Waveform visualiser (5 bars driven by CSS + --aica-voice-level).
+        const wave = document.createElement('div');
+        wave.className = 'aica-voice-bar__wave';
+        wave.setAttribute('aria-hidden', 'true');
+        for (var i = 0; i < 5; i++) {
+            wave.appendChild(document.createElement('span'));
+        }
+        bar.appendChild(wave);
+
+        // Status text.
+        const status = document.createElement('span');
+        status.className = 'aica-voice-status';
+        status.textContent = 'Connecting…';
+        bar.appendChild(status);
+
+        // End button.
         const endBtn = document.createElement('button');
         endBtn.className = 'aica-voice-end';
         endBtn.type = 'button';
         endBtn.setAttribute('aria-label', 'End voice session');
-        endBtn.textContent = '×';
+        endBtn.textContent = 'End';
         endBtn.addEventListener('click', function() {
             if (onEnd) { onEnd(); }
         });
-        overlay.appendChild(endBtn);
+        bar.appendChild(endBtn);
 
-        // Avatar.
-        const avatarWrap = document.createElement('div');
-        avatarWrap.className = 'aica-voice-avatar';
-        const avatarImg = document.createElement('img');
-        avatarImg.src = avatarUrl || '';
-        avatarImg.alt = '';
-        avatarImg.setAttribute('aria-hidden', 'true');
-        avatarWrap.appendChild(avatarImg);
-        overlay.appendChild(avatarWrap);
-
-        // Status pill.
-        const status = document.createElement('div');
-        status.className = 'aica-voice-status';
-        status.textContent = 'Connecting…';
-        overlay.appendChild(status);
-
-        // Transcript scroll area.
-        const transcript = document.createElement('div');
-        transcript.className = 'aica-voice-transcript';
-        overlay.appendChild(transcript);
-
-        drawer.appendChild(overlay);
-        return overlay;
+        // Insert before input area so messages remain visible above it.
+        const inputArea = drawer.querySelector('.local-ai-course-assistant__input-area');
+        if (inputArea) {
+            drawer.insertBefore(bar, inputArea);
+        } else {
+            drawer.appendChild(bar);
+        }
+        return bar;
     };
 
     /**
-     * Fade out and remove the voice overlay.
+     * Fade out and remove the voice bar.
      */
     const hideVoiceOverlay = function() {
         if (!drawer) { return; }
-        const overlay = drawer.querySelector('.aica-voice-overlay');
-        if (!overlay) { return; }
-        overlay.style.transition = 'opacity 0.2s ease';
-        overlay.style.opacity = '0';
-        setTimeout(function() { overlay.remove(); }, 220);
+        const bar = drawer.querySelector('.aica-voice-bar');
+        if (!bar) { return; }
+        bar.style.transition = 'opacity 0.2s ease';
+        bar.style.opacity = '0';
+        setTimeout(function() { bar.remove(); }, 220);
     };
 
     /**
@@ -1490,24 +1504,20 @@ define([
      */
     const setVoiceState = function(state) {
         if (!drawer) { return; }
-        const overlay = drawer.querySelector('.aica-voice-overlay');
-        if (!overlay) { return; }
+        const bar = drawer.querySelector('.aica-voice-bar');
+        if (!bar) { return; }
 
-        const avatarWrap = overlay.querySelector('.aica-voice-avatar');
-        const statusEl   = overlay.querySelector('.aica-voice-status');
+        bar.classList.remove(
+            'aica-voice-bar--connecting', 'aica-voice-bar--idle',
+            'aica-voice-bar--listening',  'aica-voice-bar--speaking',
+            'aica-voice-bar--disconnected'
+        );
+        bar.classList.add('aica-voice-bar--' + state);
 
-        if (avatarWrap) {
-            avatarWrap.classList.remove('aica-voice-avatar--listening', 'aica-voice-avatar--speaking');
-            if (state === 'listening') {
-                avatarWrap.classList.add('aica-voice-avatar--listening');
-            } else if (state === 'speaking') {
-                avatarWrap.classList.add('aica-voice-avatar--speaking');
-            }
-        }
-
+        const statusEl = bar.querySelector('.aica-voice-status');
         const labels = {
             connecting:   'Connecting…',
-            idle:         'Ready',
+            idle:         'Listening…',
             listening:    'Listening…',
             speaking:     'SOLA is speaking…',
             disconnected: 'Disconnected',
@@ -1518,31 +1528,34 @@ define([
     };
 
     /**
-     * Append a transcript line to the voice overlay.
+     * Append a voice transcript message to the main messages area.
+     * Voice messages appear inline so the conversation is always visible.
      *
      * @param {string} role  'user' | 'assistant'
      * @param {string} text  Text content
      */
     const appendVoiceTranscript = function(role, text) {
-        if (!drawer) { return; }
-        const transcript = drawer.querySelector('.aica-voice-transcript');
-        if (!transcript) { return; }
+        if (!messagesContainer) { return; }
 
-        // Find or create a line for this role (accumulate assistant deltas into last assistant line).
+        // Accumulate assistant deltas into the last assistant voice message.
         if (role === 'assistant') {
-            const last = transcript.querySelector('.aica-voice-line--assistant:last-child');
+            const last = messagesContainer.querySelector('.aica-voice-msg--assistant:last-child');
             if (last) {
-                last.textContent += text;
-                transcript.scrollTop = transcript.scrollHeight;
+                const content = last.querySelector('.aica-voice-msg__text');
+                if (content) { content.textContent += text; }
+                messagesContainer.scrollTop = messagesContainer.scrollHeight;
                 return;
             }
         }
 
-        const line = document.createElement('div');
-        line.className = 'aica-voice-line aica-voice-line--' + role;
-        line.textContent = text;
-        transcript.appendChild(line);
-        transcript.scrollTop = transcript.scrollHeight;
+        const msg = document.createElement('div');
+        msg.className = 'aica-voice-msg aica-voice-msg--' + role;
+        const content = document.createElement('span');
+        content.className = 'aica-voice-msg__text';
+        content.textContent = text;
+        msg.appendChild(content);
+        messagesContainer.appendChild(msg);
+        messagesContainer.scrollTop = messagesContainer.scrollHeight;
     };
 
     /**

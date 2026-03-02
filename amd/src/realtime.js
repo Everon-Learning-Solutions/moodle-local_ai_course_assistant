@@ -59,6 +59,8 @@ define([], function() {
     var analyser = null;
     /** @type {AudioBufferSourceNode|null} Currently playing audio source */
     var currentSource = null;
+    /** @type {GainNode|null} Master gain — set to 0 to instantly silence all output */
+    var masterGain = null;
 
     /**
      * Set state and notify callback.
@@ -119,7 +121,25 @@ define([], function() {
      */
     var playAudioChunks = function() {
         if (!audioChunks.length || !audioCtx) {
+            audioChunks = [];
             return;
+        }
+
+        // Silence master gain immediately — stops all audio regardless of source count.
+        // Then stop any tracked source node to release its resources.
+        if (masterGain) {
+            masterGain.gain.setValueAtTime(0, audioCtx.currentTime);
+        }
+        if (currentSource) {
+            try { currentSource.stop(); } catch (e) { /**/ }
+            currentSource = null;
+        }
+        if (rafId) {
+            cancelAnimationFrame(rafId);
+            rafId = null;
+        }
+        if (overlayRoot) {
+            overlayRoot.style.removeProperty('--aica-voice-level');
         }
 
         // Concatenate all chunks into one ArrayBuffer.
@@ -148,26 +168,33 @@ define([], function() {
         var source = audioCtx.createBufferSource();
         source.buffer = audioBuf;
 
-        // Analyser for avatar animation.
+        // Analyser for avatar animation; routes through master gain to destination.
         analyser = audioCtx.createAnalyser();
         analyser.fftSize = 256;
         source.connect(analyser);
-        analyser.connect(audioCtx.destination);
+        analyser.connect(masterGain);
 
+        // Restore gain to 1 before starting the new source.
+        if (masterGain) {
+            masterGain.gain.setValueAtTime(1, audioCtx.currentTime);
+        }
         currentSource = source;
         source.start();
         source.onended = function() {
             if (currentSource === source) {
                 currentSource = null;
+                if (rafId) {
+                    cancelAnimationFrame(rafId);
+                    rafId = null;
+                }
+                if (overlayRoot) {
+                    overlayRoot.style.removeProperty('--aica-voice-level');
+                }
+                // Only return to idle if we weren't interrupted mid-speech.
+                if (currentState !== 'listening') {
+                    setState('idle');
+                }
             }
-            if (rafId) {
-                cancelAnimationFrame(rafId);
-                rafId = null;
-            }
-            if (overlayRoot) {
-                overlayRoot.style.removeProperty('--aica-voice-level');
-            }
-            setState('idle');
         };
 
         // Drive CSS custom property for avatar animation.
@@ -263,7 +290,10 @@ define([], function() {
                 break;
 
             case 'input_audio_buffer.speech_started':
-                // User started speaking — stop any playing audio immediately.
+                // User started speaking — silence master gain immediately (most robust).
+                if (masterGain && audioCtx) {
+                    masterGain.gain.setValueAtTime(0, audioCtx.currentTime);
+                }
                 if (currentSource) {
                     try { currentSource.stop(); } catch (e) { /**/ }
                     currentSource = null;
@@ -340,7 +370,7 @@ define([], function() {
         setState('connecting');
 
         ws = new WebSocket(
-            'wss://api.openai.com/v1/realtime?model=gpt-4o-realtime-preview',
+            'wss://api.openai.com/v1/realtime?model=gpt-realtime',
             ['realtime', 'openai-insecure-api-key.' + token, 'openai-beta.realtime-v1']
         );
 
@@ -352,6 +382,12 @@ define([], function() {
             } else {
                 audioCtx = new (window.AudioContext || window.webkitAudioContext)({sampleRate: 24000});
             }
+
+            // Master gain node — all audio routes through this.
+            // Setting gain to 0 instantly silences all playback (robust interruption).
+            masterGain = audioCtx.createGain();
+            masterGain.gain.value = 1;
+            masterGain.connect(audioCtx.destination);
 
             // Configure session.
             ws.send(JSON.stringify({
@@ -387,7 +423,10 @@ define([], function() {
      * Disconnect from the Realtime API and clean up all resources.
      */
     var disconnect = function() {
-        // Stop any playing audio.
+        // Stop any playing audio — silence master gain first.
+        if (masterGain && audioCtx) {
+            masterGain.gain.setValueAtTime(0, audioCtx.currentTime);
+        }
         if (currentSource) {
             try { currentSource.stop(); } catch (e) { /**/ }
             currentSource = null;
@@ -398,6 +437,7 @@ define([], function() {
             rafId = null;
         }
         analyser = null;
+        masterGain = null;
 
         // Stop microphone.
         if (scriptProcessor) {
