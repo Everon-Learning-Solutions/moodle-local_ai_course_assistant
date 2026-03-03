@@ -446,6 +446,9 @@ define([
         applyPositionOffset();
         initDrag();
         initResize();
+        // Avatar picker has been removed; clear any stored face-SVG prefs so
+        // the preset <img> is always shown and the white fill shows through.
+        try { localStorage.removeItem(AVATAR_KEY); } catch (e) { /**/ }
         initSVGAvatars();
     };
 
@@ -1201,6 +1204,10 @@ define([
             '</li>' +
             '</ul>' +
             '<button class="local-ai-course-assistant__welcome-cta">Start Chatting</button>';
+
+        // Position below the actual header (measured at runtime).
+        var headerEl = drawer.querySelector('.local-ai-course-assistant__header');
+        panel.style.top = (headerEl ? headerEl.offsetHeight : 54) + 'px';
 
         drawer.appendChild(panel);
 

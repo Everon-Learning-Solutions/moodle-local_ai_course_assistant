@@ -106,7 +106,7 @@ if ($hassiteconfig) {
     $avatarchoices = [
         'avatar_01' => get_string('settings:avatar_saylor', 'local_ai_course_assistant'),
     ];
-    for ($i = 2; $i <= 17; $i++) {
+    for ($i = 2; $i <= 10; $i++) {
         $num = str_pad($i, 2, '0', STR_PAD_LEFT);
         $avatarchoices["avatar_{$num}"] = "Avatar {$i}";
     }

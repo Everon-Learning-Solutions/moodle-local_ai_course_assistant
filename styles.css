@@ -404,7 +404,7 @@
 /* Welcome/intro overlay (first-launch screen) */
 .local-ai-course-assistant__welcome {
     position: absolute;
-    top: 54px; /* start below the header */
+    top: 0; /* JS sets this to the actual header offsetHeight at runtime */
     left: 0;
     right: 0;
     bottom: 0;

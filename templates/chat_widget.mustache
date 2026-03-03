@@ -89,18 +89,6 @@
                 <span>{{#str}}chat:title, local_ai_course_assistant{{/str}}</span>
             </div>
             <div class="local-ai-course-assistant__header-actions">
-                {{#realtimeenabled}}
-                <button class="local-ai-course-assistant__btn-voice"
-                        title="{{#str}}chat:voice_mode, local_ai_course_assistant{{/str}}"
-                        aria-label="{{#str}}chat:voice_mode, local_ai_course_assistant{{/str}}"
-                        type="button">
-                    {{! Headphone icon }}
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16"
-                         fill="currentColor" aria-hidden="true">
-                        <path d="M12 1C7.03 1 3 5.03 3 10v4c0 1.66 1.34 3 3 3h1c.55 0 1-.45 1-1v-4c0-.55-.45-1-1-1H6v-1c0-3.31 2.69-6 6-6s6 2.69 6 6v1h-1c-.55 0-1 .45-1 1v4c0 .55.45 1 1 1h1c1.66 0 3-1.34 3-3v-4c0-4.97-4.03-9-9-9z"/>
-                    </svg>
-                </button>
-                {{/realtimeenabled}}
                 {{#canviewanalytics}}
                 <a href="{{analyticsurl}}"
                    class="local-ai-course-assistant__btn-analytics"
