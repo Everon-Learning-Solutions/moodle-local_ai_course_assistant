@@ -1,0 +1,600 @@
+// This file is part of Moodle - http://moodle.org/
+//
+// Moodle is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// Moodle is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
+
+/**
+ * Option B voice mode: Web Speech API STT + SSE AI + OpenAI TTS.
+ *
+ * State machine: disconnected → connecting → listening → speaking → idle → …
+ * "connecting" is reused for the "thinking" state between utterance and first audio.
+ *
+ * Public API mirrors realtime.js so chat.js can swap modules with minimal change:
+ *   Voice.connect(instructions, voice, callbacks, config)
+ *   Voice.disconnect()
+ *   Voice.isConnected()
+ *   Voice.ELL_INSTRUCTIONS   (string constant — kept for API parity, not used by SSE)
+ *
+ * config = { courseId, sessKey, sseUrl, lang }
+ * TTS URL is derived: sseUrl.replace(/\/sse\.php(\?.*)?$/, '/tts.php')
+ *
+ * callbacks = { onTranscript(role, text), onStateChange(state), onError(msg) }
+ *
+ * @module     local_ai_course_assistant/voice
+ * @copyright  2025 AI Course Assistant
+ * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ */
+define(['local_ai_course_assistant/sse_client'], function(SSE) {
+    'use strict';
+
+    /**
+     * ELL coaching instructions string — kept for API parity with realtime.js.
+     * Not sent to SSE (prompt is server-side); exposed so callers can test the value.
+     * @type {string}
+     */
+    var ELL_INSTRUCTIONS = 'You are SOLA in a real-time voice conversation. Keep responses brief (2–3 sentences). ' +
+        '[ELL Coaching Mode] You are an English conversation and pronunciation coach. While having natural ' +
+        'conversation: gently correct grammar errors by modeling the correct form ("You might say: \'...\'"), ' +
+        'offer pronunciation tips when speech sounds unclear. For pronunciation practice, speak a target ' +
+        'phrase clearly, then listen to the learner repeat it and give specific encouraging feedback.';
+
+    // ── Module state ─────────────────────────────────────────────────────────
+
+    /** @type {boolean} Whether a session is active */
+    var connected = false;
+    /** @type {string} Current state label */
+    var currentState = 'disconnected';
+    /** @type {SpeechRecognition|null} */
+    var recognition = null;
+    /** @type {AudioContext|null} */
+    var audioCtx = null;
+    /** @type {AnalyserNode|null} */
+    var analyser = null;
+    /** @type {number|null} requestAnimationFrame handle */
+    var animFrame = null;
+    /** @type {string[]} Sentences queued for TTS playback */
+    var ttsQueue = [];
+    /** @type {boolean} Whether TTS audio is currently playing */
+    var isTtsBusy = false;
+    /** @type {AudioBufferSourceNode|null} Currently playing source */
+    var currentSource = null;
+    /** @type {AbortController|null} Controls in-flight TTS fetch */
+    var ttsAbortCtrl = null;
+    /** @type {AbortController|null} Controls in-flight SSE stream */
+    var sseController = null;
+    /** @type {string} SSE token accumulation buffer for sentence extraction */
+    var sentenceBuffer = '';
+    /** @type {number|null} Timer to restart recognition after TTS ends */
+    var restartTimer = null;
+    /** @type {string} Derived TTS proxy URL */
+    var ttsUrl = '';
+
+    // ── Callbacks / session config ────────────────────────────────────────────
+
+    /** @type {Function|null} */
+    var onTranscriptCb = null;
+    /** @type {Function|null} */
+    var onStateChangeCb = null;
+    /** @type {Function|null} */
+    var onErrorCb = null;
+    /** @type {Object} Session config: courseId, sessKey, sseUrl, lang, voice */
+    var cfg = {};
+
+    // ── Internal helpers ──────────────────────────────────────────────────────
+
+    /**
+     * Update state and fire callback.
+     * @param {string} state
+     */
+    var setState = function(state) {
+        currentState = state;
+        if (onStateChangeCb) {
+            onStateChangeCb(state);
+        }
+    };
+
+    /**
+     * Query the DOM for the voice bar element (set CSS custom property on it).
+     * @returns {HTMLElement|null}
+     */
+    var getVoiceBar = function() {
+        return document.querySelector('.aica-voice-bar');
+    };
+
+    /**
+     * rAF-driven loop: reads AnalyserNode and sets --aica-voice-level on voice bar.
+     */
+    var animLoop = function() {
+        if (!analyser) {
+            return;
+        }
+        var data = new Uint8Array(analyser.frequencyBinCount);
+        analyser.getByteFrequencyData(data);
+        var sum = 0;
+        for (var i = 0; i < data.length; i++) {
+            sum += data[i];
+        }
+        var level = (sum / data.length / 255).toFixed(3);
+        var bar = getVoiceBar();
+        if (bar) {
+            bar.style.setProperty('--aica-voice-level', level);
+        }
+        animFrame = requestAnimationFrame(animLoop);
+    };
+
+    var startAnim = function() {
+        if (!animFrame) {
+            animFrame = requestAnimationFrame(animLoop);
+        }
+    };
+
+    var stopAnim = function() {
+        if (animFrame) {
+            cancelAnimationFrame(animFrame);
+            animFrame = null;
+        }
+        var bar = getVoiceBar();
+        if (bar) {
+            bar.style.removeProperty('--aica-voice-level');
+        }
+    };
+
+    /**
+     * Strip [SOLA_NEXT]…[/SOLA_NEXT] suggestion blocks from text.
+     * Prevents suggestion tags being spoken aloud by TTS.
+     * @param {string} text
+     * @returns {string}
+     */
+    var stripSolaTags = function(text) {
+        text = text.replace(/\[SOLA_NEXT\][\s\S]*?\[\/SOLA_NEXT\]/g, '');
+        text = text.replace(/\[SOLA_NEXT\][\s\S]*/g, '');
+        return text;
+    };
+
+    /**
+     * Extract the first complete sentence (ending . ! ?) from sentenceBuffer.
+     * Updates sentenceBuffer in place, returning the extracted sentence.
+     * @returns {string|null}
+     */
+    var extractSentence = function() {
+        var m = sentenceBuffer.match(/^([\s\S]+?[.!?])(\s+)([\s\S]*)$/);
+        if (m) {
+            sentenceBuffer = m[3];
+            return m[1].trim();
+        }
+        return null;
+    };
+
+    // ── TTS queue ─────────────────────────────────────────────────────────────
+
+    // Forward declaration — processTtsQueue and scheduleRecognitionRestart
+    // call each other; both are assigned before connect() is callable.
+    var processTtsQueue;
+    var scheduleRecognitionRestart;
+
+    /**
+     * Stop current TTS playback and clear the queue.
+     */
+    var interruptTts = function() {
+        if (currentSource) {
+            try { currentSource.stop(); } catch (e) { /**/ }
+            currentSource = null;
+        }
+        if (ttsAbortCtrl) {
+            ttsAbortCtrl.abort();
+            ttsAbortCtrl = null;
+        }
+        stopAnim();
+        ttsQueue = [];
+        isTtsBusy = false;
+    };
+
+    /**
+     * Schedule recognition restart after a short delay.
+     * Called when TTS finishes or SSE completes with nothing to play.
+     */
+    scheduleRecognitionRestart = function() {
+        if (!connected) {
+            return;
+        }
+        if (restartTimer) {
+            clearTimeout(restartTimer);
+        }
+        restartTimer = setTimeout(function() {
+            restartTimer = null;
+            if (connected && recognition) {
+                try { recognition.start(); } catch (e) { /**/ }
+            }
+        }, 300);
+    };
+
+    /**
+     * Dequeue one sentence and play it via TTS.
+     * Recursively chains until queue is empty, then restarts recognition.
+     */
+    processTtsQueue = function() {
+        if (isTtsBusy || !ttsQueue.length || !connected) {
+            return;
+        }
+
+        var sentence = ttsQueue.shift();
+        isTtsBusy = true;
+        setState('speaking');
+
+        if (ttsAbortCtrl) {
+            ttsAbortCtrl.abort();
+        }
+        ttsAbortCtrl = new AbortController();
+
+        var body = new FormData();
+        body.append('text', sentence);
+        body.append('courseid', cfg.courseId || 0);
+        body.append('sesskey', cfg.sessKey || '');
+        body.append('voice', cfg.voice || 'shimmer');
+
+        fetch(ttsUrl, {method: 'POST', body: body, signal: ttsAbortCtrl.signal})
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (!connected) {
+                    return;
+                }
+                if (data.error || !data.audio) {
+                    isTtsBusy = false;
+                    if (ttsQueue.length) {
+                        processTtsQueue();
+                    } else {
+                        setState('idle');
+                        scheduleRecognitionRestart();
+                    }
+                    return;
+                }
+
+                // Decode base64 MP3 → ArrayBuffer → AudioBuffer → play.
+                var binary = atob(data.audio);
+                var bytes = new Uint8Array(binary.length);
+                for (var i = 0; i < binary.length; i++) {
+                    bytes[i] = binary.charCodeAt(i);
+                }
+
+                audioCtx.decodeAudioData(bytes.buffer, function(audioBuf) {
+                    if (!connected) {
+                        return;
+                    }
+                    var source = audioCtx.createBufferSource();
+                    source.buffer = audioBuf;
+                    // Apply user-selected playback speed (0.5 – 2.0; default 1.0).
+                    var speed = parseFloat(localStorage.getItem('aica_tts_speed') || '1.0');
+                    if (speed >= 0.5 && speed <= 2.0) {
+                        source.playbackRate.value = speed;
+                    }
+
+                    analyser = audioCtx.createAnalyser();
+                    analyser.fftSize = 256;
+                    source.connect(analyser);
+                    analyser.connect(audioCtx.destination);
+
+                    currentSource = source;
+                    startAnim();
+                    source.start();
+
+                    source.onended = function() {
+                        if (currentSource === source) {
+                            currentSource = null;
+                        }
+                        stopAnim();
+                        isTtsBusy = false;
+                        if (!connected) {
+                            return;
+                        }
+                        if (ttsQueue.length) {
+                            processTtsQueue();
+                        } else {
+                            setState('idle');
+                            scheduleRecognitionRestart();
+                        }
+                    };
+                }, function() {
+                    // decodeAudioData failed — skip this sentence.
+                    isTtsBusy = false;
+                    if (connected && ttsQueue.length) {
+                        processTtsQueue();
+                    } else if (connected) {
+                        setState('idle');
+                        scheduleRecognitionRestart();
+                    }
+                });
+            })
+            .catch(function(err) {
+                if (err && err.name === 'AbortError') {
+                    return;
+                }
+                isTtsBusy = false;
+                if (connected && ttsQueue.length) {
+                    processTtsQueue();
+                } else if (connected) {
+                    setState('idle');
+                    scheduleRecognitionRestart();
+                }
+            });
+    };
+
+    /**
+     * Extract any complete sentences from sentenceBuffer and add to TTS queue.
+     */
+    var maybeSendSentence = function() {
+        // Strip suggestion tags before extracting sentences.
+        sentenceBuffer = stripSolaTags(sentenceBuffer);
+        var s = extractSentence();
+        while (s) {
+            ttsQueue.push(s);
+            s = extractSentence();
+        }
+        processTtsQueue();
+    };
+
+    // ── SSE processing ────────────────────────────────────────────────────────
+
+    /**
+     * Stream a user utterance through SSE, accumulate tokens into TTS queue.
+     * @param {string} text  Final recognised utterance text
+     */
+    var processUtterance = function(text) {
+        interruptTts();
+        setState('connecting'); // "thinking" — reuse connecting state/spinner
+
+        if (onTranscriptCb) {
+            onTranscriptCb('user', text);
+        }
+        sentenceBuffer = '';
+
+        var postBody = {
+            sesskey:  cfg.sessKey  || '',
+            courseid: cfg.courseId || 0,
+            message:  text,
+        };
+        if (cfg.lang) {
+            postBody.lang = cfg.lang;
+        }
+
+        if (sseController) {
+            try { sseController.abort(); } catch (e) { /**/ }
+        }
+
+        sseController = SSE.startStream(cfg.sseUrl, postBody, {
+            onToken: function(token) {
+                if (!connected) {
+                    return;
+                }
+                // Show streaming text in voice transcript area (strips SOLA_NEXT inline).
+                var cleanToken = stripSolaTags(token);
+                if (cleanToken && onTranscriptCb) {
+                    onTranscriptCb('assistant', cleanToken);
+                }
+                sentenceBuffer += token;
+                maybeSendSentence();
+            },
+            onDone: function() {
+                if (!connected) {
+                    return;
+                }
+                // Flush remaining buffer as final sentence.
+                var remaining = stripSolaTags(sentenceBuffer).trim();
+                sentenceBuffer = '';
+                if (remaining) {
+                    ttsQueue.push(remaining);
+                }
+                processTtsQueue();
+                // Nothing queued — go idle and restart listening.
+                if (!isTtsBusy && !ttsQueue.length) {
+                    setState('idle');
+                    scheduleRecognitionRestart();
+                }
+            },
+            onError: function(msg) {
+                if (!connected) {
+                    return;
+                }
+                if (onErrorCb) {
+                    onErrorCb(msg);
+                }
+                setState('idle');
+                scheduleRecognitionRestart();
+            },
+        });
+    };
+
+    // ── Speech recognition ────────────────────────────────────────────────────
+
+    /**
+     * Create and start a SpeechRecognition instance.
+     * On final result, feeds utterance to processUtterance().
+     * Does NOT auto-restart on end — restart is scheduled by TTS onended.
+     */
+    var startRecognition = function() {
+        var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (!SR) {
+            if (onErrorCb) {
+                onErrorCb('Speech recognition is not supported in this browser. Please try Chrome or Edge.');
+            }
+            return;
+        }
+
+        recognition = new SR();
+        recognition.continuous = false;
+        recognition.interimResults = true;
+        recognition.lang = cfg.lang || 'en-US';
+
+        recognition.onstart = function() {
+            if (connected) {
+                setState('listening');
+            }
+        };
+
+        recognition.onresult = function(event) {
+            var finalText = '';
+            for (var i = event.resultIndex; i < event.results.length; i++) {
+                if (event.results[i].isFinal) {
+                    finalText += event.results[i][0].transcript;
+                }
+            }
+            if (finalText.trim()) {
+                recognition.stop();
+                processUtterance(finalText.trim());
+            }
+        };
+
+        recognition.onend = function() {
+            // Intentionally empty — restart is handled by TTS onended
+            // or processUtterance onDone to prevent double-start.
+        };
+
+        recognition.onerror = function(event) {
+            // Ignore non-fatal errors.
+            if (event.error === 'no-speech' || event.error === 'aborted') {
+                return;
+            }
+            if (onErrorCb) {
+                onErrorCb('Speech recognition error: ' + event.error);
+            }
+        };
+
+        try { recognition.start(); } catch (e) { /**/ }
+    };
+
+    // ── Public API ────────────────────────────────────────────────────────────
+
+    /**
+     * Connect and start a voice session.
+     *
+     * AudioContext is created immediately (iOS/WKWebView require it within
+     * the user-gesture call stack; by the time async callbacks fire it's too late).
+     *
+     * @param {string}   instructions  System instructions (accepted for API parity; not sent to SSE)
+     * @param {string}   voice         TTS voice identifier (e.g. 'shimmer')
+     * @param {Object}   callbacks     { onTranscript, onStateChange, onError }
+     * @param {Object}   config        { courseId, sessKey, sseUrl, lang }
+     */
+    var connect = function(instructions, voice, callbacks, config) {
+        if (connected) {
+            disconnect();
+        }
+
+        onTranscriptCb  = callbacks.onTranscript  || null;
+        onStateChangeCb = callbacks.onStateChange  || null;
+        onErrorCb       = callbacks.onError        || null;
+
+        cfg = {
+            courseId: config.courseId || 0,
+            sessKey:  config.sessKey  || '',
+            sseUrl:   config.sseUrl   || '',
+            lang:     config.lang     || 'en-US',
+            voice:    voice || 'shimmer',
+        };
+
+        // Derive TTS URL from SSE URL.
+        ttsUrl = cfg.sseUrl.replace(/\/sse\.php(\?.*)?$/, '/tts.php');
+
+        // Create AudioContext synchronously — iOS requires this within the user gesture.
+        var AudioContextClass = window.AudioContext || window.webkitAudioContext;
+        if (AudioContextClass) {
+            try {
+                audioCtx = new AudioContextClass();
+                if (audioCtx.state === 'suspended') {
+                    audioCtx.resume().catch(function() {/**/});
+                }
+            } catch (e) {
+                audioCtx = null;
+            }
+        }
+
+        if (!audioCtx) {
+            if (onErrorCb) {
+                onErrorCb('Audio playback is not available in this browser.');
+            }
+            return;
+        }
+
+        // Check Speech Recognition support before marking connected.
+        if (!window.SpeechRecognition && !window.webkitSpeechRecognition) {
+            audioCtx.close().catch(function() {/**/});
+            audioCtx = null;
+            if (onErrorCb) {
+                onErrorCb('Speech recognition is not supported in this browser. Please try Chrome or Edge.');
+            }
+            return;
+        }
+
+        connected = true;
+        setState('connecting');
+        startRecognition();
+    };
+
+    /**
+     * Disconnect, stop all audio/recognition, and clean up resources.
+     */
+    var disconnect = function() {
+        connected = false;
+
+        // Stop recognition.
+        if (recognition) {
+            try { recognition.abort(); } catch (e) { /**/ }
+            recognition = null;
+        }
+
+        // Clear restart timer.
+        if (restartTimer) {
+            clearTimeout(restartTimer);
+            restartTimer = null;
+        }
+
+        // Stop TTS and animation.
+        interruptTts();
+
+        // Cancel in-flight SSE.
+        if (sseController) {
+            try { sseController.abort(); } catch (e) { /**/ }
+            sseController = null;
+        }
+
+        // Tear down audio graph.
+        if (analyser) {
+            try { analyser.disconnect(); } catch (e) { /**/ }
+            analyser = null;
+        }
+        if (audioCtx) {
+            audioCtx.close().catch(function() {/**/});
+            audioCtx = null;
+        }
+
+        sentenceBuffer = '';
+        ttsQueue = [];
+        isTtsBusy = false;
+
+        setState('disconnected');
+    };
+
+    /**
+     * Whether a session is currently active.
+     * @returns {boolean}
+     */
+    var isConnected = function() {
+        return connected;
+    };
+
+    return {
+        connect:          connect,
+        disconnect:       disconnect,
+        isConnected:      isConnected,
+        ELL_INSTRUCTIONS: ELL_INSTRUCTIONS,
+    };
+});

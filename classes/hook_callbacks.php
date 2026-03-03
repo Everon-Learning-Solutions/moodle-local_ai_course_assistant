@@ -163,6 +163,10 @@ class hook_callbacks {
         // Voice mode availability.
         $realtimeenabled = (bool)get_config('local_ai_course_assistant', 'realtime_enabled');
 
+        // ELL Pronunciation chip: requires realtime enabled globally + per-course opt-in.
+        $ellpronunciationenabled = $realtimeenabled &&
+            (bool)get_config('local_ai_course_assistant', 'ell_pronunciation_course_' . $courseid);
+
         // TTS proxy URL: available when an OpenAI key is present (realtime or main provider).
         $realtimeapikey = get_config('local_ai_course_assistant', 'realtime_apikey');
         $provider       = get_config('local_ai_course_assistant', 'provider');
@@ -196,7 +200,8 @@ class hook_callbacks {
             'modname'            => $modname,
             'pagetype'           => $pagetype,
             'quizlocked'         => $quizlocked,
-            'realtimeenabled'    => $realtimeenabled,
+            'realtimeenabled'         => $realtimeenabled,
+            'ellpronunciationenabled' => $ellpronunciationenabled,
             'ttsurl'             => $ttsurl,
             'avatarcolor'        => get_config('local_ai_course_assistant', 'avatar_color') ?: '#4a6cf7',
             'avatarfill'         => get_config('local_ai_course_assistant', 'avatar_fill') ?: '#ffffff',

@@ -65,12 +65,8 @@ $voice = $voice_param ?: (get_config('local_ai_course_assistant', 'realtime_voic
 // Truncate text to avoid excessive API costs.
 $text = mb_substr(trim($text), 0, 4096);
 
-$curl = new \curl();
-$curl->setHeader([
-    'Authorization: Bearer ' . $apikey,
-    'Content-Type: application/json',
-]);
-
+// Use native PHP curl to guarantee the JSON body is sent with the correct Content-Type.
+// Moodle's \curl wrapper can corrupt JSON POST bodies.
 $body = json_encode([
     'model'  => 'tts-1',
     'voice'  => $voice,
@@ -78,12 +74,25 @@ $body = json_encode([
     'format' => 'mp3',
 ]);
 
-$response = $curl->post('https://api.openai.com/v1/audio/speech', $body);
-$info     = $curl->get_info();
+$ch = curl_init('https://api.openai.com/v1/audio/speech');
+curl_setopt_array($ch, [
+    CURLOPT_RETURNTRANSFER => true,
+    CURLOPT_POST           => true,
+    CURLOPT_POSTFIELDS     => $body,
+    CURLOPT_HTTPHEADER     => [
+        'Authorization: Bearer ' . $apikey,
+        'Content-Type: application/json',
+        'Content-Length: ' . strlen($body),
+    ],
+    CURLOPT_TIMEOUT        => 30,
+]);
+$response = curl_exec($ch);
+$httpcode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+curl_close($ch);
 
-if ($info['http_code'] !== 200) {
+if ($httpcode !== 200) {
     http_response_code(502);
-    echo json_encode(['error' => 'TTS API error ' . $info['http_code']]);
+    echo json_encode(['error' => 'TTS API error ' . $httpcode]);
     exit;
 }
 

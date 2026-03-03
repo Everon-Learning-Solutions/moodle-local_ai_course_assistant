@@ -84,12 +84,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     course_config_manager::save($courseid, $data);
 
+    // ELL Pronunciation toggle — stored separately as plugin config keyed by course.
+    $ellpronunciation = optional_param('ell_pronunciation_enabled', 0, PARAM_INT);
+    set_config('ell_pronunciation_course_' . $courseid, $ellpronunciation, 'local_ai_course_assistant');
+
     redirect($pageurl, get_string('coursesettings:saved', 'local_ai_course_assistant'),
         null, \core\output\notification::NOTIFY_SUCCESS);
 }
 
 // Load current course overrides.
 $current = course_config_manager::get($courseid);
+
+// ELL Pronunciation setting (stored via plugin config, not in course_cfg table).
+$ellpronunciationenabled = (bool)get_config('local_ai_course_assistant', 'ell_pronunciation_course_' . $courseid);
+$realtimeenabled = (bool)get_config('local_ai_course_assistant', 'realtime_enabled');
 
 // Build provider options.
 $providers = [
@@ -242,6 +250,32 @@ echo html_writer::div(
             </div>
         </div>
     </div>
+
+    <?php if ($realtimeenabled) { ?>
+    <div class="card mb-3">
+        <div class="card-header">
+            <h5 class="mb-0"><?php echo get_string('coursesettings:ell_pronunciation', 'local_ai_course_assistant'); ?></h5>
+        </div>
+        <div class="card-body">
+            <p class="text-muted"><?php echo get_string('coursesettings:ell_pronunciation_desc', 'local_ai_course_assistant'); ?></p>
+            <div class="form-group row">
+                <label class="col-sm-3 col-form-label" for="ell_pronunciation_enabled">
+                    <?php echo get_string('coursesettings:ell_pronunciation', 'local_ai_course_assistant'); ?>
+                </label>
+                <div class="col-sm-9">
+                    <div class="custom-control custom-switch">
+                        <input type="checkbox" class="custom-control-input" id="ell_pronunciation_enabled"
+                               name="ell_pronunciation_enabled" value="1"
+                               <?php if ($ellpronunciationenabled) { echo 'checked'; } ?>>
+                        <label class="custom-control-label" for="ell_pronunciation_enabled">
+                            <?php echo get_string('coursesettings:ell_pronunciation_enable', 'local_ai_course_assistant'); ?>
+                        </label>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <?php } ?>
 
     <button type="submit" class="btn btn-primary">
         <?php echo get_string('savechanges'); ?>

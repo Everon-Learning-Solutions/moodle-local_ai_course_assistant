@@ -57,6 +57,8 @@ define([
     const SIZE_KEY = 'aica_custom_size';
     /** localStorage key for SVG avatar preferences */
     const AVATAR_KEY = 'aica_avatar';
+    /** localStorage prefix for per-course bookmarks */
+    const BOOKMARK_PREFIX = 'aica_bookmarks_';
     /** Minimum pixel movement to count as a drag (suppresses subsequent click) */
     const DRAG_THRESHOLD = 8;
 
@@ -446,6 +448,7 @@ define([
         applyPositionOffset();
         initDrag();
         initResize();
+        initMobileGestures();
         // Avatar picker has been removed; clear any stored face-SVG prefs so
         // the preset <img> is always shown and the white fill shows through.
         try { localStorage.removeItem(AVATAR_KEY); } catch (e) { /**/ }
@@ -671,6 +674,40 @@ define([
     };
 
     /**
+     * Mobile: swipe-down on drawer to close + tap-outside to close.
+     * Safe to call on desktop too — touch events simply never fire there.
+     */
+    const initMobileGestures = function() {
+        // ── Mobile: swipe-down on header to close ────────────────────────────────
+        var swipeTouchStartY = 0;
+        var swipeTouchStartX = 0;
+        if (drawer) {
+            drawer.addEventListener('touchstart', function(e) {
+                swipeTouchStartY = e.touches[0].clientY;
+                swipeTouchStartX = e.touches[0].clientX;
+            }, {passive: true});
+
+            drawer.addEventListener('touchend', function(e) {
+                var dy = e.changedTouches[0].clientY - swipeTouchStartY;
+                var dx = Math.abs(e.changedTouches[0].clientX - swipeTouchStartX);
+                // Swipe down ≥ 80px, more vertical than horizontal → close drawer.
+                if (dy > 80 && dx < dy * 0.8) {
+                    closeDrawer();
+                }
+            }, {passive: true});
+        }
+
+        // ── Tap outside drawer to close (desktop + mobile) ───────────────────────
+        if (root) {
+            root.addEventListener('click', function(e) {
+                if (isOpen() && drawer && !drawer.contains(e.target)) {
+                    closeDrawer();
+                }
+            });
+        }
+    };
+
+    /**
      * Restore the expanded state and custom size from localStorage on init.
      */
     const restoreExpandState = function() {
@@ -764,6 +801,13 @@ define([
         const opening = !isOpen();
         drawer.setAttribute('aria-hidden', opening ? 'false' : 'true');
         toggle.setAttribute('aria-expanded', opening ? 'true' : 'false');
+        if (opening) {
+            drawer.classList.add('local-ai-course-assistant__drawer--open');
+            if (root) { root.classList.add('local-ai-course-assistant--open'); }
+        } else {
+            drawer.classList.remove('local-ai-course-assistant__drawer--open');
+            if (root) { root.classList.remove('local-ai-course-assistant--open'); }
+        }
 
         return opening;
     };
@@ -774,6 +818,8 @@ define([
     const closeDrawer = function() {
         drawer.setAttribute('aria-hidden', 'true');
         toggle.setAttribute('aria-expanded', 'false');
+        drawer.classList.remove('local-ai-course-assistant__drawer--open');
+        if (root) { root.classList.remove('local-ai-course-assistant--open'); }
         toggle.focus();
     };
 
@@ -868,15 +914,19 @@ define([
     /**
      * Add a message bubble to the messages area.
      *
-     * @param {string} role 'user' or 'assistant'
-     * @param {string} text The message text (markdown for assistant, plain for user)
-     * @param {Function|null} onSpeak Optional callback when TTS button is clicked; receives (text, el)
+     * @param {string}        role     'user' or 'assistant'
+     * @param {string}        text     The message text (markdown for assistant, plain for user)
+     * @param {Function|null} onSpeak  Optional callback when TTS button is clicked; receives (text, el)
+     * @param {number|null}   ts       Optional Unix timestamp (ms) — shown as tooltip on message
      * @returns {HTMLElement} The message element
      */
-    const addMessage = function(role, text, onSpeak) {
+    const addMessage = function(role, text, onSpeak, ts) {
         const el = document.createElement('div');
         el.className = 'local-ai-course-assistant__message local-ai-course-assistant__message--' + role;
         el.setAttribute('data-role', role);
+        // Store timestamp for tooltip display.
+        const msgTs = ts || Date.now();
+        el.dataset.ts = msgTs;
 
         const content = document.createElement('div');
         content.className = 'local-ai-course-assistant__message-content';
@@ -889,30 +939,27 @@ define([
 
         el.appendChild(content);
 
-        // Add TTS speak button to assistant messages.
-        if (role === 'assistant' && onSpeak) {
-            const speakBtn = document.createElement('button');
-            speakBtn.className = 'local-ai-course-assistant__btn-speak';
-            speakBtn.setAttribute('aria-label', 'Read aloud');
-            speakBtn.setAttribute('title', 'Read aloud');
-            speakBtn.innerHTML =
-                '<svg class="aica-icon-speak" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"' +
-                ' width="14" height="14" fill="currentColor" aria-hidden="true">' +
-                '<path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3A4.5 4.5 0 0 0 14 7.97v8.05c1.48-.73 2.5-2.25 2.5-4.02z"/>' +
-                '<path d="M14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77' +
-                ' 0-4.28-2.99-7.86-7-8.77z"/></svg>' +
-                '<svg class="aica-icon-stop" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"' +
-                ' width="14" height="14" fill="currentColor" aria-hidden="true">' +
-                '<path d="M6 6h12v12H6z"/></svg>';
+        // Add action buttons (copy + bookmark + optional speak) to assistant messages.
+        if (role === 'assistant') {
+            el.appendChild(createMsgActions(content, el, onSpeak, text));
+        }
 
-            speakBtn.addEventListener('click', function() {
-                onSpeak(content.textContent || '', el, speakBtn);
-            });
-            el.appendChild(speakBtn);
+        // Timestamp label (shown on hover).
+        if (msgTs) {
+            const timeEl = document.createElement('div');
+            timeEl.className = 'local-ai-course-assistant__message-time';
+            const d = new Date(msgTs);
+            timeEl.textContent = d.toLocaleTimeString(undefined, {hour: '2-digit', minute: '2-digit'});
+            el.appendChild(timeEl);
         }
 
         messagesContainer.appendChild(el);
-        scrollToBottom();
+        if (role === 'assistant') {
+            // Bring the top of SOLA's reply into view so students read from the start.
+            scrollToMessageTop(el);
+        } else {
+            scrollToBottom();
+        }
         return el;
     };
 
@@ -982,34 +1029,35 @@ define([
      */
     const finishStreaming = function(fullText, onSpeak) {
         if (streamingEl) {
+            const completedEl = streamingEl;
             const content = streamingEl.querySelector('.local-ai-course-assistant__message-content');
             content.innerHTML = Markdown.render(fullText);
 
-            // Add speak button if TTS is available and not already present.
-            if (onSpeak && !streamingEl.querySelector('.local-ai-course-assistant__btn-speak')) {
+            // Find existing msg-actions (created by addMessage('assistant',''))
+            // or create fresh if somehow absent.
+            let actions = streamingEl.querySelector('.local-ai-course-assistant__msg-actions');
+            if (!actions) {
+                actions = createMsgActions(content, streamingEl, onSpeak, fullText);
+                streamingEl.appendChild(actions);
+            } else if (onSpeak && !actions.querySelector('.local-ai-course-assistant__btn-speak')) {
+                // Actions div exists but has no speak button yet — add one.
+                const capturedEl = streamingEl;
                 const speakBtn = document.createElement('button');
                 speakBtn.className = 'local-ai-course-assistant__btn-speak';
                 speakBtn.setAttribute('aria-label', 'Read aloud');
                 speakBtn.setAttribute('title', 'Read aloud');
-                speakBtn.innerHTML =
-                    '<svg class="aica-icon-speak" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"' +
-                    ' width="14" height="14" fill="currentColor" aria-hidden="true">' +
-                    '<path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3A4.5 4.5 0 0 0 14 7.97v8.05c1.48-.73 2.5-2.25 2.5-4.02z"/>' +
-                    '<path d="M14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77' +
-                    ' 0-4.28-2.99-7.86-7-8.77z"/></svg>' +
-                    '<svg class="aica-icon-stop" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"' +
-                    ' width="14" height="14" fill="currentColor" aria-hidden="true">' +
-                    '<path d="M6 6h12v12H6z"/></svg>';
-                const capturedEl = streamingEl;
+                speakBtn.innerHTML = SPEAK_SVG;
                 speakBtn.addEventListener('click', function() {
                     onSpeak(content.textContent || '', capturedEl, speakBtn);
                 });
-                streamingEl.appendChild(speakBtn);
+                actions.appendChild(speakBtn);
             }
 
             streamingEl = null;
+            // After the final markdown render, snap back to the top of the completed
+            // message so students read from the beginning (not stranded mid-response).
+            scrollToMessageTop(completedEl);
         }
-        scrollToBottom();
     };
 
     /**
@@ -1028,6 +1076,22 @@ define([
         if (force || isNearBottom) {
             messagesContainer.scrollTop = messagesContainer.scrollHeight;
         }
+    };
+
+    /**
+     * Scroll so the TOP of a message element is at the top of the messages container.
+     * Smooth-scrolls so the student reads from the beginning of a new response.
+     *
+     * @param {HTMLElement} el  The message element to reveal
+     */
+    const scrollToMessageTop = function(el) {
+        if (!messagesContainer || !el) {
+            return;
+        }
+        const offset = el.getBoundingClientRect().top
+            - messagesContainer.getBoundingClientRect().top
+            + messagesContainer.scrollTop;
+        messagesContainer.scrollTo({top: Math.max(0, offset - 4), behavior: 'smooth'});
     };
 
     /**
@@ -1052,6 +1116,153 @@ define([
     const setInputEnabled = function(enabled) {
         input.disabled = !enabled;
         updateSendButton();
+    };
+
+    // -----------------------------------------------------------------------
+    // Bookmark helpers (localStorage, scoped per course)
+    // -----------------------------------------------------------------------
+
+    let bookmarks = null; // loaded lazily
+
+    const getBookmarkKey = function() {
+        return BOOKMARK_PREFIX + (root ? (root.dataset.courseid || '0') : '0');
+    };
+
+    const getBookmarks = function() {
+        if (bookmarks !== null) { return bookmarks; }
+        try { bookmarks = JSON.parse(localStorage.getItem(getBookmarkKey()) || '[]'); }
+        catch (e) { bookmarks = []; }
+        return bookmarks;
+    };
+
+    const saveBookmarks = function() {
+        try { localStorage.setItem(getBookmarkKey(), JSON.stringify(getBookmarks())); }
+        catch (e) { /**/ }
+    };
+
+    const isBookmarked = function(text) {
+        return text && getBookmarks().some(function(b) { return b.text === text; });
+    };
+
+    const toggleBookmark = function(text, btn) {
+        const bmarks = getBookmarks();
+        const idx = bmarks.findIndex(function(b) { return b.text === text; });
+        if (idx >= 0) {
+            bmarks.splice(idx, 1);
+            btn.classList.remove('local-ai-course-assistant__btn-bookmark--saved');
+            btn.setAttribute('title', 'Save response');
+            showNotification('Removed from saved responses');
+        } else {
+            bmarks.push({text: text, saved_at: Date.now()});
+            btn.classList.add('local-ai-course-assistant__btn-bookmark--saved');
+            btn.setAttribute('title', 'Remove from saved');
+            showNotification('Saved!');
+        }
+        saveBookmarks();
+    };
+
+    // -----------------------------------------------------------------------
+    // Message action button SVG fragments (shared between addMessage / finishStreaming)
+    // -----------------------------------------------------------------------
+
+    const COPY_SVG =
+        '<svg class="aica-icon-copy" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"' +
+        ' width="14" height="14" fill="currentColor" aria-hidden="true">' +
+        '<path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11' +
+        'c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>' +
+        '<svg class="aica-icon-check" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"' +
+        ' width="14" height="14" fill="currentColor" aria-hidden="true">' +
+        '<path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z"/></svg>';
+
+    const BOOKMARK_SVG =
+        '<svg class="aica-icon-bookmark" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"' +
+        ' width="14" height="14" fill="currentColor" aria-hidden="true">' +
+        '<path d="M17 3H7c-1.1 0-2 .9-2 2v16l7-3 7 3V5c0-1.1-.9-2-2-2zm0 15l-5-2.18L7 18V5h10v13z"/></svg>' +
+        '<svg class="aica-icon-bookmark-saved" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"' +
+        ' width="14" height="14" fill="currentColor" aria-hidden="true">' +
+        '<path d="M17 3H7c-1.1 0-2 .9-2 2v16l7-3 7 3V5c0-1.1-.9-2-2-2z"/></svg>';
+
+    const SPEAK_SVG =
+        '<svg class="aica-icon-speak" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"' +
+        ' width="14" height="14" fill="currentColor" aria-hidden="true">' +
+        '<path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3A4.5 4.5 0 0 0 14 7.97v8.05c1.48-.73 2.5-2.25 2.5-4.02z"/>' +
+        '<path d="M14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77' +
+        ' 0-4.28-2.99-7.86-7-8.77z"/></svg>' +
+        '<svg class="aica-icon-stop" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"' +
+        ' width="14" height="14" fill="currentColor" aria-hidden="true">' +
+        '<path d="M6 6h12v12H6z"/></svg>';
+
+    /**
+     * Create the action buttons container for an assistant message.
+     * Always includes copy + bookmark; adds speak if onSpeak provided.
+     *
+     * @param {HTMLElement}   content  The message content div (used for clipboard/bookmark text)
+     * @param {HTMLElement}   el       The message element (for speak callback)
+     * @param {Function|null} onSpeak  Speak callback, or null
+     * @param {string}        text     Pre-known text (for bookmark initial state)
+     * @returns {HTMLElement}
+     */
+    const createMsgActions = function(content, el, onSpeak, text) {
+        const actions = document.createElement('div');
+        actions.className = 'local-ai-course-assistant__msg-actions';
+
+        // Copy button.
+        const copyBtn = document.createElement('button');
+        copyBtn.className = 'local-ai-course-assistant__btn-copy';
+        copyBtn.setAttribute('aria-label', 'Copy');
+        copyBtn.setAttribute('title', 'Copy');
+        copyBtn.innerHTML = COPY_SVG;
+        copyBtn.addEventListener('click', function() {
+            const t = content.textContent || '';
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(t).then(function() {
+                    copyBtn.classList.add('local-ai-course-assistant__btn-copy--done');
+                    setTimeout(function() {
+                        copyBtn.classList.remove('local-ai-course-assistant__btn-copy--done');
+                    }, 2000);
+                }).catch(function() { /**/ });
+            }
+        });
+        actions.appendChild(copyBtn);
+
+        // Bookmark button.
+        const bookmarkBtn = document.createElement('button');
+        bookmarkBtn.className = 'local-ai-course-assistant__btn-bookmark';
+        const savedNow = text ? isBookmarked(text) : false;
+        if (savedNow) { bookmarkBtn.classList.add('local-ai-course-assistant__btn-bookmark--saved'); }
+        bookmarkBtn.setAttribute('aria-label', savedNow ? 'Remove from saved' : 'Save response');
+        bookmarkBtn.setAttribute('title', savedNow ? 'Remove from saved' : 'Save response');
+        bookmarkBtn.innerHTML = BOOKMARK_SVG;
+        bookmarkBtn.addEventListener('click', function() {
+            toggleBookmark(content.textContent || '', bookmarkBtn);
+        });
+        actions.appendChild(bookmarkBtn);
+
+        // Speak button (optional).
+        if (onSpeak) {
+            const speakBtn = document.createElement('button');
+            speakBtn.className = 'local-ai-course-assistant__btn-speak';
+            speakBtn.setAttribute('aria-label', 'Read aloud');
+            speakBtn.setAttribute('title', 'Read aloud');
+            speakBtn.innerHTML = SPEAK_SVG;
+            speakBtn.addEventListener('click', function() {
+                onSpeak(content.textContent || '', el, speakBtn);
+            });
+            actions.appendChild(speakBtn);
+        }
+
+        return actions;
+    };
+
+    /**
+     * Add a date separator to the messages area.
+     * @param {string} label e.g. 'Today', 'Yesterday', 'March 1, 2026'
+     */
+    const addDateSeparator = function(label) {
+        const el = document.createElement('div');
+        el.className = 'local-ai-course-assistant__date-separator';
+        el.innerHTML = '<span>' + label + '</span>';
+        messagesContainer.appendChild(el);
     };
 
     /**
@@ -1205,20 +1416,23 @@ define([
             '</ul>' +
             '<button class="local-ai-course-assistant__welcome-cta">Start Chatting</button>';
 
-        // Position below the actual header (measured at runtime).
+        // Insert as a flex child immediately after the header so it naturally
+        // starts below it — no absolute positioning or height measurement needed.
         var headerEl = drawer.querySelector('.local-ai-course-assistant__header');
-        panel.style.top = (headerEl ? headerEl.offsetHeight : 54) + 'px';
+        if (headerEl && headerEl.nextSibling) {
+            drawer.insertBefore(panel, headerEl.nextSibling);
+        } else {
+            drawer.appendChild(panel);
+        }
 
-        drawer.appendChild(panel);
-
-        // Fade in and focus the CTA button.
-        setTimeout(function() {
+        // Single rAF for the fade-in (browser needs one frame to register the element).
+        requestAnimationFrame(function() {
             panel.classList.add('local-ai-course-assistant__welcome--visible');
             var cta = panel.querySelector('.local-ai-course-assistant__welcome-cta');
             if (cta) {
                 cta.focus();
             }
-        }, 50);
+        });
 
         // Dismiss on CTA click.
         var ctaBtn = panel.querySelector('.local-ai-course-assistant__welcome-cta');
@@ -1465,27 +1679,9 @@ define([
     const showVoiceOverlay = function(avatarUrl, onEnd) {
         if (!drawer) { return null; }
 
-        // Remove any existing bar or card.
+        // Remove any existing bar.
         const existing = drawer.querySelector('.aica-voice-bar');
         if (existing) { existing.remove(); }
-        if (messagesContainer) {
-            const existingCard = messagesContainer.querySelector('.aica-voice-card');
-            if (existingCard) { existingCard.remove(); }
-
-            // Compact voice status card in messages area — replaces the empty-space problem.
-            const card = document.createElement('div');
-            card.className = 'aica-voice-card';
-            const cardWave = document.createElement('div');
-            cardWave.className = 'aica-voice-bar__wave';
-            cardWave.setAttribute('aria-hidden', 'true');
-            for (var ci = 0; ci < 5; ci++) { cardWave.appendChild(document.createElement('span')); }
-            card.appendChild(cardWave);
-            const cardStatus = document.createElement('span');
-            cardStatus.className = 'aica-voice-card__status';
-            cardStatus.textContent = 'Connecting…';
-            card.appendChild(cardStatus);
-            messagesContainer.appendChild(card);
-        }
 
         const bar = document.createElement('div');
         bar.className = 'aica-voice-bar';
@@ -1537,15 +1733,6 @@ define([
             bar.style.opacity = '0';
             setTimeout(function() { bar.remove(); }, 220);
         }
-        // Remove the voice card from messages area too.
-        if (messagesContainer) {
-            const card = messagesContainer.querySelector('.aica-voice-card');
-            if (card) {
-                card.style.transition = 'opacity 0.2s ease';
-                card.style.opacity = '0';
-                setTimeout(function() { card.remove(); }, 220);
-            }
-        }
     };
 
     /**
@@ -1577,20 +1764,6 @@ define([
             statusEl.textContent = labels[state] || state;
         }
 
-        // Also update the compact card in messages area.
-        if (messagesContainer) {
-            const card = messagesContainer.querySelector('.aica-voice-card');
-            if (card) {
-                card.classList.remove(
-                    'aica-voice-card--connecting', 'aica-voice-card--idle',
-                    'aica-voice-card--listening',  'aica-voice-card--speaking',
-                    'aica-voice-card--disconnected'
-                );
-                card.classList.add('aica-voice-card--' + state);
-                const cardStatusEl = card.querySelector('.aica-voice-card__status');
-                if (cardStatusEl) { cardStatusEl.textContent = labels[state] || state; }
-            }
-        }
     };
 
     /**
@@ -1782,8 +1955,102 @@ define([
                 pendingVoice = voiceSelect.value;
             });
             voiceSection.appendChild(voiceSelect);
+
+            // Speed slider (Practice Speaking TTS only — 0.5× to 2.0×).
+            if (config.hasTts) {
+                const speedWrap = document.createElement('div');
+                speedWrap.className = 'aica-settings-panel__speed-row';
+
+                const speedLabel = document.createElement('label');
+                speedLabel.className = 'aica-settings-panel__speed-label';
+                speedLabel.htmlFor = 'aica-tts-speed-slider';
+                speedLabel.textContent = 'Speaking speed';
+
+                const speedVal = document.createElement('span');
+                speedVal.className = 'aica-settings-panel__speed-val';
+                const initSpeed = parseFloat(localStorage.getItem('aica_tts_speed') || '1.0');
+                speedVal.textContent = initSpeed.toFixed(1) + '×';
+
+                const speedSlider = document.createElement('input');
+                speedSlider.type = 'range';
+                speedSlider.id = 'aica-tts-speed-slider';
+                speedSlider.className = 'aica-settings-panel__speed-slider';
+                speedSlider.min = '0.5';
+                speedSlider.max = '2.0';
+                speedSlider.step = '0.1';
+                speedSlider.value = initSpeed.toFixed(1);
+
+                speedSlider.addEventListener('input', function() {
+                    speedVal.textContent = parseFloat(speedSlider.value).toFixed(1) + '×';
+                });
+
+                speedWrap.appendChild(speedLabel);
+                speedWrap.appendChild(speedSlider);
+                speedWrap.appendChild(speedVal);
+                voiceSection.appendChild(speedWrap);
+
+                // Store reference for save handler.
+                voiceSection.dataset.hasSpeedSlider = '1';
+                voiceSection._speedSlider = speedSlider;
+            }
+
             content.appendChild(voiceSection);
         }
+
+        // ── Saved Responses ──
+        const bmarks = getBookmarks();
+        const savedSection = document.createElement('div');
+        savedSection.className = 'aica-settings-panel__section';
+        const savedHead = document.createElement('h3');
+        savedHead.className = 'aica-settings-panel__section-title';
+        savedHead.textContent = 'Saved responses (' + bmarks.length + ')';
+        savedSection.appendChild(savedHead);
+
+        if (bmarks.length === 0) {
+            const noSaved = document.createElement('p');
+            noSaved.className = 'aica-settings-panel__empty-note';
+            noSaved.textContent = 'Bookmark any SOLA response using the \u2605 icon on a message.';
+            savedSection.appendChild(noSaved);
+        } else {
+            bmarks.slice().reverse().forEach(function(b) {
+                const item = document.createElement('div');
+                item.className = 'aica-settings-panel__bookmark-item';
+
+                const excerpt = document.createElement('p');
+                excerpt.className = 'aica-settings-panel__bookmark-text';
+                const trimmed = (b.text || '').replace(/\s+/g, ' ').trim();
+                excerpt.textContent = trimmed.length > 120 ? trimmed.slice(0, 117) + '\u2026' : trimmed;
+                item.appendChild(excerpt);
+
+                const removeBtn = document.createElement('button');
+                removeBtn.type = 'button';
+                removeBtn.className = 'aica-settings-panel__bookmark-remove';
+                removeBtn.setAttribute('aria-label', 'Remove bookmark');
+                removeBtn.textContent = '\u00d7';
+                removeBtn.addEventListener('click', function() {
+                    const idx = getBookmarks().findIndex(function(x) { return x.text === b.text; });
+                    if (idx >= 0) { getBookmarks().splice(idx, 1); saveBookmarks(); }
+                    item.remove();
+                    // Update count in heading.
+                    savedHead.textContent = 'Saved responses (' + getBookmarks().length + ')';
+                    // Also un-fill any bookmark button for this text.
+                    if (messagesContainer) {
+                        messagesContainer.querySelectorAll('.local-ai-course-assistant__btn-bookmark').forEach(function(btn) {
+                            const msgContent = btn.closest('.local-ai-course-assistant__message')
+                                && btn.closest('.local-ai-course-assistant__message')
+                                    .querySelector('.local-ai-course-assistant__message-content');
+                            if (msgContent && msgContent.textContent === b.text) {
+                                btn.classList.remove('local-ai-course-assistant__btn-bookmark--saved');
+                                btn.setAttribute('title', 'Save response');
+                            }
+                        });
+                    }
+                });
+                item.appendChild(removeBtn);
+                savedSection.appendChild(item);
+            });
+        }
+        content.appendChild(savedSection);
 
         panel.appendChild(content);
 
@@ -1808,6 +2075,11 @@ define([
                 if (callbacks.onVoiceSelect) {
                     callbacks.onVoiceSelect(pendingVoice);
                 }
+            }
+            // Save TTS speed if slider exists.
+            const voiceSec = content.querySelector('[data-has-speed-slider="1"]');
+            if (voiceSec && voiceSec._speedSlider) {
+                localStorage.setItem('aica_tts_speed', voiceSec._speedSlider.value);
             }
             panel.remove();
         });
@@ -2064,6 +2336,8 @@ define([
         scrollToBottom: scrollToBottom,
         showTyping: showTyping,
         setInputEnabled: setInputEnabled,
+        addDateSeparator: addDateSeparator,
+        getBookmarks: getBookmarks,
         clearMessages: clearMessages,
         getInputValue: getInputValue,
         clearInput: clearInput,

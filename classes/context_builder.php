@@ -154,6 +154,11 @@ class context_builder {
         // Append multilingual instructions (with explicit language if set).
         $prompt .= self::get_multilingual_instructions($lang);
 
+        // Brevity instruction — keep responses scannable in the small widget.
+        $prompt .= "\n\nKEEP RESPONSES BRIEF: Use 2-4 short sentences or bullet points unless the student "
+            . "explicitly asks for more detail. After answering, you may add a short follow-up offer like "
+            . "\"Want me to go deeper on any part?\" — but only occasionally, not every time.";
+
         // Truncate if needed.
         $prompt = self::truncate_prompt($prompt, $courseid);
 

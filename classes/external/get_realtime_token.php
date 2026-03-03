@@ -65,33 +65,44 @@ class get_realtime_token extends external_api {
 
         $voice = get_config('local_ai_course_assistant', 'realtime_voice') ?: 'shimmer';
 
-        // Call OpenAI Realtime sessions endpoint to get an ephemeral token.
-        $curl = new \curl();
-        $curl->setHeader([
-            'Authorization: Bearer ' . $apikey,
-            'Content-Type: application/json',
-        ]);
-
+        // Use native PHP curl to avoid Moodle wrapper Content-Type issues with JSON bodies.
+        // /v1/realtime/client_secrets is the GA endpoint — returns a GA ephemeral token
+        // compatible with the GA WebSocket (no openai-beta header).
+        // /v1/realtime/sessions creates beta secrets and must NOT be used with the GA WS.
+        // Voice and instructions are sent via session.update after the WebSocket connects.
         $body = json_encode([
-            'model' => 'gpt-4o-mini-realtime-preview',
-            'voice' => $voice,
+            'session' => [
+                'type' => 'realtime',
+            ],
         ]);
 
-        $response = $curl->post('https://api.openai.com/v1/realtime/client_secrets', $body);
-        $info = $curl->get_info();
+        $ch = curl_init('https://api.openai.com/v1/realtime/client_secrets');
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_POST           => true,
+            CURLOPT_POSTFIELDS     => $body,
+            CURLOPT_HTTPHEADER     => [
+                'Authorization: Bearer ' . $apikey,
+                'Content-Type: application/json',
+                'Content-Length: ' . strlen($body),
+            ],
+            CURLOPT_TIMEOUT        => 15,
+        ]);
+        $response = curl_exec($ch);
+        $httpcode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
 
-        if ($info['http_code'] !== 200) {
+        if ($httpcode !== 200) {
             $errdata = json_decode($response, true);
-            $errmsg = isset($errdata['error']['message']) ? $errdata['error']['message'] : 'API error ' . $info['http_code'];
+            $errmsg = isset($errdata['error']['message'])
+                ? $errdata['error']['message']
+                : 'API error ' . $httpcode . ': ' . substr($response, 0, 300);
             throw new \moodle_exception('error', 'local_ai_course_assistant', '', $errmsg);
         }
 
         $data = json_decode($response, true);
-        // GA /v1/realtime/client_secrets returns value at top level;
-        // beta /v1/realtime/sessions nests it under client_secret.value.
-        $token = !empty($data['client_secret']['value'])
-            ? $data['client_secret']['value']
-            : ($data['value'] ?? '');
+        // GA client_secrets endpoint nests the token under client_secret.value.
+        $token = $data['client_secret']['value'] ?? ($data['value'] ?? '');
 
         if (empty($token)) {
             throw new \moodle_exception('error', 'local_ai_course_assistant', '',

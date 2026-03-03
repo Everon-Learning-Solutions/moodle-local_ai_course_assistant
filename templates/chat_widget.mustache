@@ -89,6 +89,17 @@
                 <span>{{#str}}chat:title, local_ai_course_assistant{{/str}}</span>
             </div>
             <div class="local-ai-course-assistant__header-actions">
+                {{#ttsurl}}
+                <button class="local-ai-course-assistant__btn-voice"
+                        title="{{#str}}chat:voice_mode, local_ai_course_assistant{{/str}}"
+                        aria-label="{{#str}}chat:voice_mode, local_ai_course_assistant{{/str}}"
+                        type="button">
+                    {{! Headphone icon — voice conversation mode }}
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true">
+                        <path d="M12 1a9 9 0 0 0-9 9v4a3 3 0 0 0 3 3h1a1 1 0 0 0 1-1v-5a1 1 0 0 0-1-1H6v-1a6 6 0 0 1 12 0v1h-1a1 1 0 0 0-1 1v5a1 1 0 0 0 1 1h1a3 3 0 0 0 3-3v-4a9 9 0 0 0-9-9z"/>
+                    </svg>
+                </button>
+                {{/ttsurl}}
                 {{#canviewanalytics}}
                 <a href="{{analyticsurl}}"
                    class="local-ai-course-assistant__btn-analytics"
@@ -120,15 +131,6 @@
                         <path d="M19.14 12.94c.04-.3.06-.61.06-.94s-.02-.64-.07-.94l2.03-1.58a.49.49 0 0 0 .12-.61l-1.92-3.32a.49.49 0 0 0-.59-.22l-2.39.96a7.02 7.02 0 0 0-1.62-.94l-.36-2.54a.484.484 0 0 0-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96a.48.48 0 0 0-.59.22L2.74 8.87a.47.47 0 0 0 .12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58a.49.49 0 0 0-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.37 1.04.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.57 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32a.47.47 0 0 0-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/>
                     </svg>
                 </button>
-                <button class="local-ai-course-assistant__btn-reset"
-                        title="{{#str}}chat:reset, local_ai_course_assistant{{/str}}"
-                        aria-label="{{#str}}chat:reset, local_ai_course_assistant{{/str}}">
-                    {{! Home icon — return to conversation starters }}
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
-                         width="16" height="16" fill="currentColor" aria-hidden="true">
-                        <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/>
-                    </svg>
-                </button>
                 <button class="local-ai-course-assistant__btn-clear"
                         title="{{#str}}chat:clear, local_ai_course_assistant{{/str}}"
                         aria-label="{{#str}}chat:clear, local_ai_course_assistant{{/str}}"
@@ -136,6 +138,15 @@
                     {{! Trash icon — delete conversation history }}
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true">
                         <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
+                    </svg>
+                </button>
+                <button class="local-ai-course-assistant__btn-reset"
+                        title="{{#str}}chat:reset, local_ai_course_assistant{{/str}}"
+                        aria-label="{{#str}}chat:reset, local_ai_course_assistant{{/str}}">
+                    {{! Home icon — return to conversation starters }}
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
+                         width="16" height="16" fill="currentColor" aria-hidden="true">
+                        <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/>
                     </svg>
                 </button>
                 <button class="local-ai-course-assistant__btn-expand"
@@ -218,7 +229,7 @@
                 </span>
                 <span>{{#str}}chat:starter_study_plan, local_ai_course_assistant{{/str}}</span>
             </button>
-            {{#realtimeenabled}}
+            {{#ttsurl}}
             <button class="local-ai-course-assistant__starter"
                     data-starter="ell-practice">
                 <span class="aica-starter-icon" aria-hidden="true">
@@ -229,7 +240,19 @@
                 </span>
                 <span>{{#str}}chat:starter_ell_practice, local_ai_course_assistant{{/str}}</span>
             </button>
-            {{/realtimeenabled}}
+            {{/ttsurl}}
+            {{#ellpronunciationenabled}}
+            <button class="local-ai-course-assistant__starter"
+                    data-starter="ell-pronunciation">
+                <span class="aica-starter-icon" aria-hidden="true">
+                    {{! Sound waves icon — ELL Pronunciation }}
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true">
+                        <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3A4.5 4.5 0 0 0 14 7.97v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>
+                    </svg>
+                </span>
+                <span>{{#str}}chat:starter_ell_pronunciation, local_ai_course_assistant{{/str}}</span>
+            </button>
+            {{/ellpronunciationenabled}}
             <button class="local-ai-course-assistant__starter" data-starter="ai-coach">
                 <span class="aica-starter-icon" aria-hidden="true">
                     {{! Robot/AI icon — AI Coach }}

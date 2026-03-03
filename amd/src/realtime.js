@@ -261,6 +261,12 @@ define([], function() {
     var startMicCapture = function() {
         navigator.mediaDevices.getUserMedia({audio: true}).then(function(stream) {
             micStream = stream;
+            // audioCtx may have been closed by a prior disconnect() — bail out cleanly.
+            if (!audioCtx) {
+                stream.getTracks().forEach(function(t) { t.stop(); });
+                micStream = null;
+                return;
+            }
             if (audioCtx.state === 'suspended') {
                 audioCtx.resume().catch(function() {/**/});
             }
@@ -361,6 +367,11 @@ define([], function() {
 
         switch (msg.type) {
             case 'session.created':
+                // Session is live — start capturing mic audio.
+                setState('idle');
+                startMicCapture();
+                break;
+
             case 'session.updated':
                 setState('idle');
                 break;
@@ -398,6 +409,9 @@ define([], function() {
                 if (onErrorCb) {
                     onErrorCb(msg.error ? msg.error.message : 'Unknown error');
                 }
+                // Disconnect immediately so stale mic capture and WebSocket do not
+                // keep firing follow-on errors (e.g. empty audio buffer commits).
+                disconnect();
                 break;
         }
     };
@@ -443,7 +457,9 @@ define([], function() {
             masterGain.gain.value = 1;
             masterGain.connect(audioCtx.destination);
 
-            // Configure session.
+            // Configure session: voice, instructions, audio formats, VAD off.
+            // Do NOT include 'type' inside the session object — it is only required
+            // by the HTTP /v1/realtime/client_secrets body, not the WebSocket event.
             ws.send(JSON.stringify({
                 type: 'session.update',
                 session: {
@@ -457,8 +473,6 @@ define([], function() {
                     temperature: 0.8,
                 },
             }));
-
-            startMicCapture();
 
             // ── 15-minute session cap ──
             // Warn at 14 min, auto-disconnect at 15 min to control API costs.

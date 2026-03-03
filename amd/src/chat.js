@@ -27,8 +27,9 @@ define([
     'local_ai_course_assistant/repository',
     'local_ai_course_assistant/speech',
     'local_ai_course_assistant/realtime',
+    'local_ai_course_assistant/voice',
     'core/str',
-], function(UI, SSE, Repo, Speech, Realtime, Str) {
+], function(UI, SSE, Repo, Speech, Realtime, Voice, Str) {
 
     /** @type {Array} Quiz topics parsed from data attribute */
     let quizTopics = [];
@@ -172,8 +173,9 @@ define([
             'explain':      labels ? labels.helpLesson   : null, // reuse helpLesson translations
             'key-concepts': labels ? labels.keyConcepts  : null,
             'study-plan':   labels ? labels.studyPlan    : null,
-            'ell-practice': labels ? labels.ellPractice  : null,
-            'ai-coach':     labels ? labels.aiCoach      : null,
+            'ell-practice':       labels ? labels.ellPractice       : null,
+            'ell-pronunciation':  labels ? labels.ellPronunciation  : null,
+            'ai-coach':           labels ? labels.aiCoach           : null,
             // Legacy starter keys.
             'help-lesson':  labels ? labels.helpLesson   : null,
             'help-me':      labels ? labels.helpMe       : null,
@@ -244,11 +246,11 @@ define([
             settingsPanelBtn.addEventListener('click', handleSettingsPanel);
         }
 
-        // Voice mode button.
+        // Voice mode button (header shortcut — triggers Practice Speaking / Option B).
         const voiceBtn = els.root ? els.root.querySelector('.local-ai-course-assistant__btn-voice') : null;
         if (voiceBtn) {
             voiceBtn.addEventListener('click', function() {
-                handleVoiceMode(null);
+                handlePracticeSpeaking();
             });
         }
 
@@ -367,9 +369,15 @@ define([
             return;
         }
 
-        // ELL practice — opens voice mode with ELL coaching instructions.
+        // Practice Speaking — Option B (SSE + TTS + Web Speech API).
         if (starterKey === 'ell-practice') {
-            handleVoiceMode(Realtime.ELL_INSTRUCTIONS);
+            handlePracticeSpeaking();
+            return;
+        }
+
+        // ELL Pronunciation — Option C (Realtime), phoneme-level feedback.
+        if (starterKey === 'ell-pronunciation') {
+            handleELLPronunciation();
             return;
         }
 
@@ -522,17 +530,68 @@ define([
     };
 
     /**
-     * Start a Realtime voice session with optional custom instructions.
-     *
-     * @param {string|null} instructions System instructions (null = use session default)
+     * Start a Practice Speaking session (Option B: SSE + TTS + Web Speech API).
+     * Cheaper and more reliable than Realtime; suitable for conversational practice.
      */
-    const handleVoiceMode = function(instructions) {
+    const handlePracticeSpeaking = function() {
+        // Clean up any existing session before starting.
+        if (Realtime.isConnected()) { Realtime.disconnect(); }
+        // Voice.connect() calls disconnect() internally if already connected.
+
+        const root = document.getElementById('local-ai-course-assistant');
+        const avatarUrl = root ? root.dataset.avatarurl : '';
+        const voice = localStorage.getItem('aica_tts_voice') || 'shimmer';
+
+        const endSession = function() {
+            Voice.disconnect();
+            UI.hideVoiceOverlay();
+        };
+
+        UI.showVoiceOverlay(avatarUrl, endSession);
+        UI.setVoiceState('connecting');
+
+        Voice.connect(
+            '',
+            voice,
+            {
+                onTranscript: function(role, text) {
+                    UI.appendVoiceTranscript(role, text);
+                },
+                onStateChange: function(state) {
+                    UI.setVoiceState(state);
+                    if (state === 'disconnected') {
+                        UI.hideVoiceOverlay();
+                    }
+                },
+                onError: function(msg) {
+                    Voice.disconnect();
+                    UI.setVoiceState('disconnected');
+                    UI.hideVoiceOverlay();
+                    UI.addMessage('assistant', msg || 'Voice mode failed.');
+                },
+            },
+            {
+                courseId: courseId,
+                sessKey:  sessKey,
+                sseUrl:   sseUrl,
+                lang:     Speech.getLang(),
+            }
+        );
+    };
+
+    /**
+     * Start an ELL Pronunciation session (Option C: OpenAI Realtime WebSocket).
+     * Uses phoneme-level audio analysis — requires realtime_enabled and an OpenAI key.
+     */
+    const handleELLPronunciation = function() {
+        // Clean up any existing session (Realtime or Practice Speaking) before starting.
+        if (Realtime.isConnected()) { Realtime.disconnect(); }
+        if (Voice.isConnected())    { Voice.disconnect(); }
+
         const root = document.getElementById('local-ai-course-assistant');
         const avatarUrl = root ? root.dataset.avatarurl : '';
 
-        // Create AudioContext synchronously here, while still inside the user-gesture handler.
-        // iOS Safari and WKWebView (Moodle mobile app) require AudioContext to be created
-        // within a user gesture — by the time the WebSocket open event fires it is too late.
+        // Create AudioContext synchronously — iOS/WKWebView require it inside the user gesture.
         const AudioContextClass = window.AudioContext || window.webkitAudioContext;
         let audioCtx = null;
         if (AudioContextClass) {
@@ -546,7 +605,6 @@ define([
             }
         }
 
-        // Show overlay immediately with connecting state.
         const endSession = function() {
             Realtime.disconnect();
             UI.hideVoiceOverlay();
@@ -557,12 +615,11 @@ define([
 
         Repo.getRealtimeToken(courseId).then(function(result) {
             const token = result.token;
-            // Student's saved voice preference overrides the server default.
             const voice = localStorage.getItem('aica_tts_voice') || result.voice;
 
             Realtime.connect(
                 token,
-                instructions || '',
+                Realtime.ELL_INSTRUCTIONS,
                 voice,
                 {
                     onTranscript: function(role, text) {
@@ -598,10 +655,10 @@ define([
     };
 
     /**
-     * Start a voice session in ELL coaching mode.
+     * Alias kept for any internal callers; triggers ELL Pronunciation (Option C).
      */
     const handleELLPractice = function() {
-        handleVoiceMode(Realtime.ELL_INSTRUCTIONS);
+        handleELLPronunciation();
     };
 
     /**
@@ -618,8 +675,9 @@ define([
             'explain':      ['explain', 'explain this', 'explain it'],
             'key-concepts': ['key concepts', 'key concept', 'concepts', 'main concepts'],
             'study-plan':   ['study plan', 'study', 'plan', 'schedule'],
-            'ell-practice': ['practice speaking', 'speaking practice', 'practice'],
-            'ai-coach':     ['ai coach', 'learn about ai', 'artificial intelligence', 'ai tools'],
+            'ell-practice':      ['practice speaking', 'speaking practice', 'practice'],
+            'ell-pronunciation': ['pronunciation', 'pronunciation coach', 'ell pronunciation'],
+            'ai-coach':          ['ai coach', 'learn about ai', 'artificial intelligence', 'ai tools'],
         };
         // Check translated labels for the current language first.
         const labels = Speech.getStarterLabels(Speech.getLang ? Speech.getLang() : null);
@@ -928,13 +986,36 @@ define([
                         });
                         return;
                     }
-                    UI.showQuiz(result.questions, result.topic, function onFinish() {
+                    let pendingQuizChips = null;
+                    UI.showQuiz(result.questions, result.topic, function onFinish(score, total, topic) {
                         quizModeActive = false;
                         setQuizBtnActive(quizBtn, false);
+                        // Track quiz result in localStorage.
+                        try {
+                            const histKey = 'aica_quiz_history_' + courseId;
+                            const hist = JSON.parse(localStorage.getItem(histKey) || '[]');
+                            hist.push({topic: topic, score: score, total: total, date: Date.now()});
+                            if (hist.length > 50) { hist.splice(0, hist.length - 50); }
+                            localStorage.setItem(histKey, JSON.stringify(hist));
+                        } catch (e) { /**/ }
+                        // Prepare adaptive follow-up chips for when user exits the summary.
+                        const pct = total > 0 ? score / total : 0;
+                        if (pct < 0.5) {
+                            pendingQuizChips = ['Review this topic with me', 'Explain what I got wrong', 'Give me easier questions'];
+                        } else if (pct < 0.8) {
+                            pendingQuizChips = ['Go deeper on this topic', 'What should I focus on?', 'Quiz me again'];
+                        } else {
+                            pendingQuizChips = ['Give me harder questions', 'Move to the next topic', 'What else should I learn?'];
+                        }
                     }, function onExit() {
                         quizModeActive = false;
                         setQuizBtnActive(quizBtn, false);
                         UI.showStarters();
+                        if (pendingQuizChips) {
+                            const chips = pendingQuizChips;
+                            pendingQuizChips = null;
+                            setTimeout(function() { UI.showSuggestions(chips, handleSuggestionClick); }, 150);
+                        }
                     });
                 }).catch(function() {
                     UI.showTyping(false);
@@ -984,6 +1065,7 @@ define([
         if (opened && !historyLoaded) {
             loadHistory();
             checkAndShowIntro();
+            updateStreak();
         }
     };
 
@@ -1014,6 +1096,42 @@ define([
     };
 
     /**
+     * Update the daily learning streak and show a notification if milestone reached.
+     * Streak is per-course, stored in localStorage as {streak, lastDate} (date = YYYY-MM-DD).
+     */
+    const updateStreak = function() {
+        try {
+            const key = 'aica_streak_' + courseId;
+            const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+            const stored = JSON.parse(localStorage.getItem(key) || '{}');
+            let streak = stored.streak || 0;
+            const lastDate = stored.lastDate || '';
+
+            if (lastDate === today) {
+                // Already opened today — no change, no notification.
+                return;
+            }
+
+            const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+            if (lastDate === yesterday) {
+                streak += 1; // Consecutive day.
+            } else {
+                streak = 1; // Gap or first time — start fresh.
+            }
+
+            localStorage.setItem(key, JSON.stringify({streak: streak, lastDate: today}));
+
+            // Show milestone notification (2+ day streaks).
+            if (streak >= 2) {
+                const label = streak + '-day learning streak!';
+                UI.showNotification('\uD83D\uDD25 ' + label);
+            }
+        } catch (e) {
+            // localStorage disabled — skip silently.
+        }
+    };
+
+    /**
      * Handle input keydown.
      *
      * @param {KeyboardEvent} e
@@ -1034,7 +1152,32 @@ define([
             if (result.messages && result.messages.length > 0) {
                 const NEXT_RE = /\n*\[SOLA_NEXT\]([\s\S]*?)\[\/SOLA_NEXT\]/;
                 let lastSuggestions = [];
+                let prevDateKey = null;
+                const today = new Date();
+                const yesterday = new Date(today);
+                yesterday.setDate(today.getDate() - 1);
+
                 result.messages.forEach(function(msg) {
+                    // Insert date separator when conversation day changes.
+                    if (msg.timecreated) {
+                        const d = new Date(msg.timecreated * 1000);
+                        const dateKey = d.toDateString();
+                        if (dateKey !== prevDateKey) {
+                            prevDateKey = dateKey;
+                            let label;
+                            if (dateKey === today.toDateString()) {
+                                label = 'Today';
+                            } else if (dateKey === yesterday.toDateString()) {
+                                label = 'Yesterday';
+                            } else {
+                                label = d.toLocaleDateString(undefined, {
+                                    month: 'long', day: 'numeric', year: 'numeric'
+                                });
+                            }
+                            UI.addDateSeparator(label);
+                        }
+                    }
+
                     let text = msg.message;
                     if (msg.role === 'assistant') {
                         const match = text.match(NEXT_RE);
@@ -1047,11 +1190,21 @@ define([
                             lastSuggestions = [];
                         }
                     }
-                    UI.addMessage(msg.role, text);
+                    UI.addMessage(msg.role, text, null, msg.timecreated ? msg.timecreated * 1000 : null);
                 });
                 UI.scrollToBottom(true);
-                // Re-show chips from the last assistant message that had them.
-                if (lastSuggestions.length) {
+
+                // If returning after a break (last message > 2 hours ago), show re-engagement chips.
+                const lastMsg = result.messages[result.messages.length - 1];
+                const lastTs = lastMsg && lastMsg.timecreated ? lastMsg.timecreated * 1000 : 0;
+                const twoHours = 2 * 60 * 60 * 1000;
+                if (lastTs && (Date.now() - lastTs) > twoHours) {
+                    UI.showSuggestions(
+                        ['Continue our conversation', 'Quiz me on what we covered', 'What should I focus on next?'],
+                        handleSuggestionClick
+                    );
+                } else if (lastSuggestions.length) {
+                    // Re-show chips from the last assistant message that had them.
                     UI.showSuggestions(lastSuggestions, handleSuggestionClick);
                 }
             } else {
@@ -1161,6 +1314,13 @@ define([
                     UI.finishStreaming(displayText, (getTtsUrl() || Speech.isTTSSupported()) ? handleSpeak : null);
                     if (suggestions.length) {
                         UI.showSuggestions(suggestions, handleSuggestionClick);
+                    } else if (fullText.trim().length > 0) {
+                        // Smart fallback chips: comprehension-focused for long responses.
+                        const wordCount = displayText.trim().split(/\s+/).length;
+                        const chips = wordCount > 120
+                            ? ['Quiz me on this', 'Summarize this', 'Give me an example']
+                            : ['Tell me more', 'Give me an example', 'Quiz me on this'];
+                        UI.showSuggestions(chips, handleSuggestionClick);
                     }
                 }
                 sending = false;

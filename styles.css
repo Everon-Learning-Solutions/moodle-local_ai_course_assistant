@@ -3,7 +3,7 @@
 /* Container */
 .local-ai-course-assistant {
     position: fixed;
-    z-index: 9999;
+    z-index: 100000;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 }
 
@@ -73,7 +73,7 @@
     position: absolute;
     width: 360px;
     min-width: 300px;
-    max-height: 520px;
+    max-height: 624px;
     background: #fff;
     border-radius: 16px;
     box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15);
@@ -123,6 +123,8 @@
 
 /* Header */
 .local-ai-course-assistant__header {
+    position: relative;
+    z-index: 10;   /* always above welcome/starters overlays */
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -205,6 +207,7 @@
 /* Message bubbles */
 .local-ai-course-assistant__message {
     display: flex;
+    flex-direction: column;
     max-width: 85%;
     animation: aitc-fade-in 0.2s ease;
 }
@@ -401,20 +404,59 @@
     justify-content: space-between;
 }
 
+/* Timestamp label on messages (shown on hover) */
+.local-ai-course-assistant__message-time {
+    font-size: 10px;
+    color: #9ca3af;
+    opacity: 0;
+    transition: opacity 0.15s;
+    margin-top: 2px;
+    padding: 0 2px;
+    align-self: flex-end;
+    flex-shrink: 0;
+    white-space: nowrap;
+}
+
+@media (hover: hover) {
+    .local-ai-course-assistant__message:hover .local-ai-course-assistant__message-time {
+        opacity: 1;
+    }
+}
+
+/* Date separator between conversation days */
+.local-ai-course-assistant__date-separator {
+    display: flex;
+    align-items: center;
+    margin: 12px 0 8px;
+    color: #9ca3af;
+    font-size: 11px;
+}
+
+.local-ai-course-assistant__date-separator::before,
+.local-ai-course-assistant__date-separator::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: #e5e7eb;
+}
+
+.local-ai-course-assistant__date-separator span {
+    padding: 0 8px;
+    white-space: nowrap;
+}
+
 /* Welcome/intro overlay (first-launch screen) */
 .local-ai-course-assistant__welcome {
-    position: absolute;
-    top: 0; /* JS sets this to the actual header offsetHeight at runtime */
-    left: 0;
-    right: 0;
-    bottom: 0;
+    /* Flex child — inserted after header, so naturally starts below it.
+       No absolute positioning needed; no header-height measurement required. */
+    flex: 9999 1 auto;
+    min-height: 0;
     background: #fff;
-    z-index: 5;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: flex-start;
-    padding: 16px 24px 16px;
+    padding: 16px 24px 20px;
     text-align: center;
     opacity: 0;
     transition: opacity 0.3s ease;
@@ -1062,14 +1104,34 @@
 .local-ai-course-assistant__btn-mic--recording .aica-icon-mic-stop { display: block; }
 
 /* =========================================================
-   TTS (speak) button on assistant messages
-   Absolutely positioned overlay — takes no horizontal space
+   Message action buttons (copy + speak)
+   Absolutely positioned at bottom-right of assistant message
    ========================================================= */
 
-.local-ai-course-assistant__btn-speak {
+.local-ai-course-assistant__msg-actions {
     position: absolute;
     bottom: 5px;
     right: 6px;
+    display: flex;
+    gap: 3px;
+    opacity: 0;
+    transition: opacity 0.15s;
+}
+
+@media (hover: hover) {
+    .local-ai-course-assistant__message--assistant:hover .local-ai-course-assistant__msg-actions {
+        opacity: 1;
+    }
+}
+
+.local-ai-course-assistant__message--speaking .local-ai-course-assistant__msg-actions {
+    opacity: 1;
+}
+
+/* Shared button style */
+.local-ai-course-assistant__btn-copy,
+.local-ai-course-assistant__btn-bookmark,
+.local-ai-course-assistant__btn-speak {
     background: rgba(255, 255, 255, 0.85);
     border: 1px solid #e5e7eb;
     color: #9ca3af;
@@ -1079,31 +1141,41 @@
     display: inline-flex;
     align-items: center;
     line-height: 1;
-    transition: color 0.15s, background 0.15s, opacity 0.15s;
-    opacity: 0;
+    transition: color 0.15s, background 0.15s;
     backdrop-filter: blur(2px);
 }
 
-.local-ai-course-assistant__btn-speak--active {
-    opacity: 1;
-}
-
 @media (hover: hover) {
-    .local-ai-course-assistant__message--assistant:hover .local-ai-course-assistant__btn-speak {
-        opacity: 1;
-    }
-}
-
-@media (hover: hover) {
+    .local-ai-course-assistant__btn-copy:hover,
+    .local-ai-course-assistant__btn-bookmark:hover,
     .local-ai-course-assistant__btn-speak:hover {
         color: #4a6cf7;
         background: rgba(255, 255, 255, 0.98);
     }
 }
 
+/* Copy: done state */
+.local-ai-course-assistant__btn-copy--done {
+    color: #16a34a !important;
+    background: rgba(255, 255, 255, 0.98) !important;
+}
+.aica-icon-check { display: none; }
+.local-ai-course-assistant__btn-copy--done .aica-icon-copy  { display: none; }
+.local-ai-course-assistant__btn-copy--done .aica-icon-check { display: inline; }
+
+/* Bookmark: saved state */
+.local-ai-course-assistant__btn-bookmark--saved {
+    color: #f59e0b !important;
+    background: rgba(255, 255, 255, 0.98) !important;
+}
+.aica-icon-bookmark-saved { display: none; }
+.local-ai-course-assistant__btn-bookmark--saved .aica-icon-bookmark       { display: none; }
+.local-ai-course-assistant__btn-bookmark--saved .aica-icon-bookmark-saved { display: inline; }
+
+/* Speak: active state */
 .local-ai-course-assistant__btn-speak--active {
-    color: #ef4444;
-    background: rgba(255, 255, 255, 0.98);
+    color: #ef4444 !important;
+    background: rgba(255, 255, 255, 0.98) !important;
 }
 
 /* Speak/stop icon swap */
@@ -1626,6 +1698,10 @@
     align-items: center;
     justify-content: center;
     outline-offset: 2px;
+    width: 24px;
+    height: 24px;
+    overflow: hidden;
+    flex-shrink: 0;
 }
 
 @media (hover: hover) {
@@ -1807,6 +1883,32 @@
     box-shadow: 0 0 0 2px rgba(74,108,247,0.15);
 }
 
+.aica-settings-panel__speed-row {
+    display: grid;
+    grid-template-columns: 1fr auto auto;
+    align-items: center;
+    gap: 8px;
+    margin-top: 10px;
+}
+
+.aica-settings-panel__speed-label {
+    font-size: 12px;
+    color: #374151;
+}
+
+.aica-settings-panel__speed-slider {
+    width: 90px;
+    accent-color: #4a6cf7;
+    cursor: pointer;
+}
+
+.aica-settings-panel__speed-val {
+    font-size: 11px;
+    color: #6b7280;
+    min-width: 28px;
+    text-align: right;
+}
+
 .aica-settings-panel__footer {
     flex: 0 0 auto;
     padding: 10px 16px 14px;
@@ -1829,6 +1931,53 @@
 @media (hover: hover) {
     .aica-settings-panel__save:hover {
         background: #3a5ce5;
+    }
+}
+
+/* Settings panel: saved responses section */
+.aica-settings-panel__empty-note {
+    font-size: 11px;
+    color: #9ca3af;
+    margin: 0;
+    line-height: 1.4;
+}
+
+.aica-settings-panel__bookmark-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 6px;
+    padding: 6px 0;
+    border-bottom: 1px solid #f3f4f6;
+}
+
+.aica-settings-panel__bookmark-item:last-child {
+    border-bottom: none;
+}
+
+.aica-settings-panel__bookmark-text {
+    flex: 1;
+    font-size: 11px;
+    color: #374151;
+    line-height: 1.4;
+    margin: 0;
+    overflow: hidden;
+}
+
+.aica-settings-panel__bookmark-remove {
+    flex: 0 0 auto;
+    background: none;
+    border: none;
+    color: #9ca3af;
+    cursor: pointer;
+    font-size: 14px;
+    line-height: 1;
+    padding: 0 2px;
+    transition: color .15s;
+}
+
+@media (hover: hover) {
+    .aica-settings-panel__bookmark-remove:hover {
+        color: #ef4444;
     }
 }
 
@@ -2196,7 +2345,8 @@
     100% { box-shadow: 0 0 0 0   rgba(74, 108, 247, 0);    }
 }
 
-.local-ai-course-assistant__toggle {
+/* Only animate when drawer is closed */
+.local-ai-course-assistant__toggle[aria-expanded="false"] {
     animation: aica-avatar-bob 3s ease-in-out infinite,
                aica-avatar-pulse 2.5s ease-out infinite;
 }
@@ -2458,4 +2608,86 @@
 @keyframes aica-voice-btn-pulse {
     0%, 100% { opacity: 1; }
     50%       { opacity: 0.6; }
+}
+
+/* =========================================================
+   Mobile full-screen mode (≤ 600px)
+   The drawer slides up from the bottom and fills the screen.
+   ========================================================= */
+
+@media (max-width: 600px) {
+    /* Drawer: fixed full-screen, slides up */
+    .local-ai-course-assistant__drawer {
+        position: fixed !important;
+        top: 0 !important;
+        left: 0 !important;
+        right: 0 !important;
+        bottom: 0 !important;
+        width: 100% !important;
+        max-height: 100% !important;
+        height: 100% !important;
+        border-radius: 0 !important;
+        transform: translateY(100%) !important;
+        opacity: 1 !important;
+        transition: transform 0.3s ease !important;
+    }
+
+    .local-ai-course-assistant__drawer--open {
+        transform: translateY(0) !important;
+        pointer-events: auto !important;
+    }
+
+    /* Hide toggle button while drawer is open on mobile — redundant with close btn */
+    .local-ai-course-assistant__drawer--open ~ .local-ai-course-assistant__toggle,
+    .local-ai-course-assistant--open .local-ai-course-assistant__toggle {
+        display: none;
+    }
+
+    /* Resize handles unnecessary on mobile */
+    .aica-resize-handle {
+        display: none !important;
+    }
+
+    /* Give the header a swipe-down hint bar */
+    .local-ai-course-assistant__header::before {
+        content: '';
+        display: block;
+        position: absolute;
+        top: 6px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 36px;
+        height: 4px;
+        background: rgba(255, 255, 255, 0.4);
+        border-radius: 2px;
+    }
+
+    /* Header needs relative positioning for the hint bar pseudo-element */
+    .local-ai-course-assistant__header {
+        position: relative;
+        padding-top: 18px; /* extra space for the drag handle pill */
+    }
+
+    /* Make messages area taller on mobile */
+    .local-ai-course-assistant__messages {
+        flex: 1 1 auto;
+    }
+
+    /* Larger tap target for action buttons on mobile; always visible */
+    .local-ai-course-assistant__msg-actions {
+        opacity: 0.85 !important;
+    }
+
+    .local-ai-course-assistant__btn-copy,
+    .local-ai-course-assistant__btn-bookmark,
+    .local-ai-course-assistant__btn-speak {
+        padding: 6px !important;
+    }
+
+    .local-ai-course-assistant__btn-copy svg,
+    .local-ai-course-assistant__btn-bookmark svg,
+    .local-ai-course-assistant__btn-speak svg {
+        width: 16px !important;
+        height: 16px !important;
+    }
 }
