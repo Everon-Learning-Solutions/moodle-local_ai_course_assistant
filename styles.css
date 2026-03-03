@@ -404,7 +404,7 @@
 /* Welcome/intro overlay (first-launch screen) */
 .local-ai-course-assistant__welcome {
     position: absolute;
-    top: 0;
+    top: 54px; /* start below the header */
     left: 0;
     right: 0;
     bottom: 0;
@@ -414,7 +414,7 @@
     flex-direction: column;
     align-items: center;
     justify-content: flex-start;
-    padding: 28px 24px 24px;
+    padding: 16px 24px 16px;
     text-align: center;
     opacity: 0;
     transition: opacity 0.3s ease;
@@ -426,10 +426,10 @@
 }
 
 .local-ai-course-assistant__welcome-avatar {
-    width: 72px;
-    height: 72px;
+    width: 56px;
+    height: 56px;
     border-radius: 50%;
-    margin-bottom: 16px;
+    margin-bottom: 8px;
     border: 3px solid rgba(74, 108, 247, 0.2);
     padding: 4px;
     background: #f0f2f5;
@@ -446,14 +446,14 @@
 .local-ai-course-assistant__welcome-subtitle {
     font-size: 13px;
     color: #6b7280;
-    margin: 0 0 20px;
+    margin: 0 0 12px;
     line-height: 1.5;
 }
 
 .local-ai-course-assistant__welcome-features {
     list-style: none;
     padding: 0;
-    margin: 0 0 24px;
+    margin: 0 0 12px;
     text-align: left;
     width: 100%;
 }
@@ -464,7 +464,7 @@
     gap: 10px;
     font-size: 13px;
     color: #374151;
-    padding: 8px 0;
+    padding: 5px 0;
     border-bottom: 1px solid #f3f4f6;
     line-height: 1.4;
 }
