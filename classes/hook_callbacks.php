@@ -83,7 +83,7 @@ class hook_callbacks {
 
         // Build list of all available avatars as JSON for the picker.
         $availableavatars = [];
-        for ($i = 1; $i <= 11; $i++) {
+        for ($i = 1; $i <= 10; $i++) {
             $id = 'avatar_' . str_pad((string)$i, 2, '0', STR_PAD_LEFT);
             $availableavatars[] = [
                 'id'  => $id,

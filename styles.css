@@ -591,6 +591,12 @@
         padding-bottom: max(8px, env(safe-area-inset-bottom));
     }
 
+    /* Lift the container above the safe area (iOS home indicator, browser chrome) */
+    .local-ai-course-assistant--bottom-right,
+    .local-ai-course-assistant--bottom-left {
+        bottom: max(20px, calc(12px + env(safe-area-inset-bottom)));
+    }
+
     .local-ai-course-assistant__toggle {
         width: 56px;
         height: 56px;
@@ -738,12 +744,7 @@
 .local-ai-course-assistant__drawer--expanded .aica-icon-expand   { display: none; }
 .local-ai-course-assistant__drawer--expanded .aica-icon-collapse { display: inline-flex; }
 
-/* Hide expand button on mobile (drawer already fills viewport) */
-@media (max-width: 600px) {
-    .local-ai-course-assistant__btn-expand {
-        display: none;
-    }
-}
+/* On mobile, expand button acts as minimize/restore — keep it visible */
 
 /* =========================================================
    Reset/home button in header
@@ -1497,6 +1498,15 @@
 .local-ai-course-assistant__drawer--quiz-setup .local-ai-course-assistant__messages,
 .local-ai-course-assistant__drawer--quiz-setup .local-ai-course-assistant__typing,
 .local-ai-course-assistant__drawer--quiz-setup .local-ai-course-assistant__starters {
+    display: none;
+}
+
+/* Hide starters, messages, typing, and input area while welcome screen is showing.
+   The welcome screen's own CTA button replaces the input area. */
+.local-ai-course-assistant__drawer--welcome .local-ai-course-assistant__messages,
+.local-ai-course-assistant__drawer--welcome .local-ai-course-assistant__typing,
+.local-ai-course-assistant__drawer--welcome .local-ai-course-assistant__starters,
+.local-ai-course-assistant__drawer--welcome .local-ai-course-assistant__input-area {
     display: none;
 }
 
@@ -2637,11 +2647,30 @@
         pointer-events: auto !important;
     }
 
-    /* Hide toggle button while drawer is open on mobile — redundant with close btn */
-    .local-ai-course-assistant__drawer--open ~ .local-ai-course-assistant__toggle,
+    /* Toggle always visible on mobile — floats above the full-screen drawer.
+       Users tap it to both open and close; this prevents the "no way to reopen" problem. */
     .local-ai-course-assistant--open .local-ai-course-assistant__toggle {
-        display: none;
+        position: relative;
+        z-index: 1;
     }
+
+    /* Half-screen minimized state: drawer occupies bottom 50% of viewport */
+    .local-ai-course-assistant__drawer--minimized {
+        top: 50vh !important;
+        height: 50vh !important;
+        max-height: 50vh !important;
+        border-radius: 16px 16px 0 0 !important;
+        transform: translateY(0) !important;
+        pointer-events: auto !important;
+    }
+
+    /* Expand/minimize icon state on mobile:
+       Full-screen (open, not minimized) → show collapse icon (tap to minimize)
+       Minimized → show expand icon (tap to restore, which is the default) */
+    .local-ai-course-assistant__drawer--open:not(.local-ai-course-assistant__drawer--minimized)
+        .aica-icon-expand { display: none; }
+    .local-ai-course-assistant__drawer--open:not(.local-ai-course-assistant__drawer--minimized)
+        .aica-icon-collapse { display: inline-flex; }
 
     /* Resize handles unnecessary on mobile */
     .aica-resize-handle {

@@ -487,15 +487,24 @@ define([
             return;
         }
 
-        // Restore saved drag position.
+        // Restore saved drag position, but clamp to viewport so a bad saved value
+        // can't push the widget off-screen (e.g. after an accidental mobile drag).
         try {
             const saved = localStorage.getItem(DRAG_KEY);
             if (saved) {
                 const pos = JSON.parse(saved);
-                root.style.bottom = 'auto';
-                root.style.right  = 'auto';
-                root.style.top    = pos.top  + 'px';
-                root.style.left   = pos.left + 'px';
+                const minVisible = 40; // px of widget that must remain on-screen
+                const maxTop  = window.innerHeight - minVisible;
+                const maxLeft = window.innerWidth  - minVisible;
+                if (pos.top >= 0 && pos.top <= maxTop && pos.left >= 0 && pos.left <= maxLeft) {
+                    root.style.bottom = 'auto';
+                    root.style.right  = 'auto';
+                    root.style.top    = pos.top  + 'px';
+                    root.style.left   = pos.left + 'px';
+                } else {
+                    // Saved position is off-screen — discard it.
+                    localStorage.removeItem(DRAG_KEY);
+                }
             }
         } catch (e) { /**/ }
 
@@ -539,17 +548,27 @@ define([
             }
             dragging = false;
             root.classList.remove('local-ai-course-assistant--dragging');
-            // If the toggle button was dragged (not just clicked), set the flag so
-            // chat.js can suppress the resulting click event.
-            if (dragFromToggle && dragMoved) {
-                toggleDragged = true;
+            if (dragMoved) {
+                // Actual drag — set the flag if it came from the toggle so chat.js
+                // can suppress the resulting click, then persist the new position.
+                if (dragFromToggle) {
+                    toggleDragged = true;
+                }
+                try {
+                    localStorage.setItem(DRAG_KEY, JSON.stringify({
+                        left: parseInt(root.style.left, 10),
+                        top:  parseInt(root.style.top,  10),
+                    }));
+                } catch (e) { /**/ }
+            } else {
+                // No movement — this was a plain click, not a drag.
+                // Restore CSS-based positioning so the widget stays at bottom/right
+                // and adapts correctly when the viewport resizes (e.g. iOS address bar).
+                root.style.bottom = '';
+                root.style.right  = '';
+                root.style.top    = '';
+                root.style.left   = '';
             }
-            try {
-                localStorage.setItem(DRAG_KEY, JSON.stringify({
-                    left: parseInt(root.style.left, 10),
-                    top:  parseInt(root.style.top,  10),
-                }));
-            } catch (e) { /**/ }
         };
 
         // Unified Pointer Events drag (mouse, touch, stylus) — works across all input types.
@@ -567,10 +586,12 @@ define([
         document.addEventListener('pointerup', onDragEnd);
         document.addEventListener('pointercancel', onDragEnd);
 
-        // Toggle button drag — allows repositioning the widget via the avatar button.
-        if (toggle) {
+        // Toggle button drag — desktop only.
+        // On mobile (≤600px) any small swipe while tapping can accidentally save an
+        // off-screen position to localStorage. Drag is disabled on mobile; the widget
+        // stays at its CSS-defined bottom-right corner.
+        if (toggle && window.innerWidth > 600) {
             toggle.addEventListener('pointerdown', function(e) {
-                e.preventDefault();
                 onDragStart(e.clientX, e.clientY, true);
             });
         }
@@ -746,6 +767,19 @@ define([
     };
 
     /**
+     * Toggle the mobile half-screen minimized state.
+     * Only meaningful on mobile (≤600px) where the drawer is full-screen.
+     *
+     * @returns {boolean} True if now minimized
+     */
+    const toggleMinimize = function() {
+        if (!drawer) {
+            return false;
+        }
+        return drawer.classList.toggle('local-ai-course-assistant__drawer--minimized');
+    };
+
+    /**
      * Toggle between normal and expanded states.
      * Expanding clears inline dimensions so the CSS class defines size.
      * Collapsing restores the user's custom size if previously set.
@@ -798,6 +832,11 @@ define([
      * @returns {boolean} True if drawer is now open
      */
     const toggleDrawer = function() {
+        // On mobile, if the drawer is minimized, clicking the toggle restores to full-screen.
+        if (drawer && drawer.classList.contains('local-ai-course-assistant__drawer--minimized')) {
+            drawer.classList.remove('local-ai-course-assistant__drawer--minimized');
+            return true; // still open
+        }
         const opening = !isOpen();
         drawer.setAttribute('aria-hidden', opening ? 'false' : 'true');
         toggle.setAttribute('aria-expanded', opening ? 'true' : 'false');
@@ -819,6 +858,8 @@ define([
         drawer.setAttribute('aria-hidden', 'true');
         toggle.setAttribute('aria-expanded', 'false');
         drawer.classList.remove('local-ai-course-assistant__drawer--open');
+        drawer.classList.remove('local-ai-course-assistant__drawer--minimized');
+        drawer.classList.remove('local-ai-course-assistant__drawer--welcome');
         if (root) { root.classList.remove('local-ai-course-assistant--open'); }
         toggle.focus();
     };
@@ -1425,6 +1466,12 @@ define([
             drawer.appendChild(panel);
         }
 
+        // Hide starters, messages, and input while welcome is showing so the
+        // screen is clean — the CTA replaces the input area.
+        if (drawer) {
+            drawer.classList.add('local-ai-course-assistant__drawer--welcome');
+        }
+
         // Single rAF for the fade-in (browser needs one frame to register the element).
         requestAnimationFrame(function() {
             panel.classList.add('local-ai-course-assistant__welcome--visible');
@@ -1438,6 +1485,9 @@ define([
         var ctaBtn = panel.querySelector('.local-ai-course-assistant__welcome-cta');
         ctaBtn.addEventListener('click', function() {
             panel.classList.remove('local-ai-course-assistant__welcome--visible');
+            if (drawer) {
+                drawer.classList.remove('local-ai-course-assistant__drawer--welcome');
+            }
             setTimeout(function() {
                 panel.remove();
             }, 300);
@@ -1890,9 +1940,10 @@ define([
         langSection.appendChild(langSelect);
         content.appendChild(langSection);
 
-        // ── Avatar ──
+        // ── Avatar — built here, appended last (after Saved Responses) ──
+        let avatarSection = null;
         if (config.avatars && config.avatars.length) {
-            const avatarSection = document.createElement('div');
+            avatarSection = document.createElement('div');
             avatarSection.className = 'aica-settings-panel__section';
             const avatarHead = document.createElement('h3');
             avatarHead.className = 'aica-settings-panel__section-title';
@@ -1921,7 +1972,7 @@ define([
                 grid.appendChild(btn);
             });
             avatarSection.appendChild(grid);
-            content.appendChild(avatarSection);
+            // Not appended here — appended after Saved Responses below.
         }
 
         // ── Voice ──
@@ -2051,6 +2102,11 @@ define([
             });
         }
         content.appendChild(savedSection);
+
+        // Avatar section appended last so it appears at the bottom of settings.
+        if (avatarSection) {
+            content.appendChild(avatarSection);
+        }
 
         panel.appendChild(content);
 
@@ -2348,6 +2404,7 @@ define([
         showNotification: showNotification,
         showIntroModal: showIntroModal,
         toggleExpand: toggleExpand,
+        toggleMinimize: toggleMinimize,
         setMicRecording: setMicRecording,
         setMicVisible: setMicVisible,
         showLanguageBanner: showLanguageBanner,

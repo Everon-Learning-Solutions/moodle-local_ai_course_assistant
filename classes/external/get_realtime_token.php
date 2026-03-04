@@ -66,15 +66,11 @@ class get_realtime_token extends external_api {
         $voice = get_config('local_ai_course_assistant', 'realtime_voice') ?: 'shimmer';
 
         // Use native PHP curl to avoid Moodle wrapper Content-Type issues with JSON bodies.
-        // /v1/realtime/client_secrets is the GA endpoint — returns a GA ephemeral token
-        // compatible with the GA WebSocket (no openai-beta header).
-        // /v1/realtime/sessions creates beta secrets and must NOT be used with the GA WS.
+        // /v1/realtime/client_secrets is the GA endpoint — produces a GA ephemeral token
+        // that works with the GA WebSocket (wss://api.openai.com/v1/realtime).
+        // /v1/realtime/sessions produces BETA secrets which are incompatible with the GA WS.
         // Voice and instructions are sent via session.update after the WebSocket connects.
-        $body = json_encode([
-            'session' => [
-                'type' => 'realtime',
-            ],
-        ]);
+        $body = '{}';
 
         $ch = curl_init('https://api.openai.com/v1/realtime/client_secrets');
         curl_setopt_array($ch, [

@@ -499,7 +499,12 @@ define([], function() {
             setState('disconnected');
         });
 
-        ws.addEventListener('close', function() {
+        ws.addEventListener('close', function(e) {
+            // Surface non-normal close codes so the user sees why the connection failed.
+            if (e.code !== 1000 && e.code !== 1001 && onErrorCb) {
+                var reason = e.reason || ('WebSocket closed: code ' + e.code);
+                onErrorCb(reason);
+            }
             setState('disconnected');
         });
     };

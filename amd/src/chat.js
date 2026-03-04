@@ -903,17 +903,32 @@ define([
 
     /**
      * Handle expand/collapse button click.
+     * On mobile (≤600px): toggles half-screen minimized state.
+     * On desktop: toggles the wider expanded state.
      */
     const handleExpand = function() {
-        const expanded = UI.toggleExpand();
+        const isMobile = window.innerWidth <= 600;
         const els = UI.getElements();
-        if (els.expandBtn) {
-            Str.get_string(expanded ? 'chat:collapse' : 'chat:expand', 'local_ai_course_assistant')
-            .then(function(label) {
-                els.expandBtn.title = label;
-                els.expandBtn.setAttribute('aria-label', label);
-                return;
-            }).catch(function() { /**/ });
+        if (isMobile) {
+            const minimized = UI.toggleMinimize();
+            if (els.expandBtn) {
+                Str.get_string(minimized ? 'chat:expand' : 'chat:collapse', 'local_ai_course_assistant')
+                .then(function(label) {
+                    els.expandBtn.title = label;
+                    els.expandBtn.setAttribute('aria-label', label);
+                    return;
+                }).catch(function() { /**/ });
+            }
+        } else {
+            const expanded = UI.toggleExpand();
+            if (els.expandBtn) {
+                Str.get_string(expanded ? 'chat:collapse' : 'chat:expand', 'local_ai_course_assistant')
+                .then(function(label) {
+                    els.expandBtn.title = label;
+                    els.expandBtn.setAttribute('aria-label', label);
+                    return;
+                }).catch(function() { /**/ });
+            }
         }
     };
 
