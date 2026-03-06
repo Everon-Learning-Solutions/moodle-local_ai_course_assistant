@@ -128,9 +128,9 @@ $string['coursesettings:enabled'] = 'Enable course overrides';
 $string['coursesettings:enabled_desc'] = 'When enabled, the settings below override the global AI provider configuration for this course only. Leave fields blank to inherit the global value.';
 $string['coursesettings:using_global'] = 'Using global setting';
 $string['coursesettings:saved'] = 'Course AI settings saved.';
-$string['coursesettings:ell_pronunciation']        = 'ELL Pronunciation Mode';
-$string['coursesettings:ell_pronunciation_desc']   = 'Show the "ELL Pronunciation" chip for students in this course. Uses OpenAI Realtime API for phoneme-level pronunciation feedback. Requires Voice Mode to be enabled in global plugin settings.';
-$string['coursesettings:ell_pronunciation_enable'] = 'Enable ELL Pronunciation chip for this course';
+$string['coursesettings:ell_pronunciation']        = 'Pronunciation Practice Mode';
+$string['coursesettings:ell_pronunciation_desc']   = 'Show the "Pronunciation Practice" chip for students in this course. Uses OpenAI Realtime API for phoneme-level pronunciation feedback. Requires Voice Mode to be enabled in global plugin settings.';
+$string['coursesettings:ell_pronunciation_enable'] = 'Enable Pronunciation Practice chip for this course';
 $string['coursesettings:global_settings_link'] = 'Global AI settings';
 
 // Language detection and preference.
@@ -406,7 +406,7 @@ $string['chat:starter_key_concepts']        = 'Key Concepts';
 $string['chat:starter_study_plan']          = 'Study Plan';
 $string['chat:starter_help_me']             = 'AI Help';
 $string['chat:starter_ell_practice']        = 'Practice Speaking';
-$string['chat:starter_ell_pronunciation']   = 'ELL Pronunciation';
+$string['chat:starter_ell_pronunciation']   = 'Pronunciation Practice';
 $string['chat:starter_ai_coach']            = 'AI Coach';
 $string['chat:starter_quick_study']         = 'Quick Study';
 $string['chat:starter_speak']               = 'Speak a starter';

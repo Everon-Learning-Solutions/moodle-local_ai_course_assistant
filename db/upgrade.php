@@ -216,5 +216,12 @@ function xmldb_local_ai_course_assistant_upgrade($oldversion) {
         upgrade_plugin_savepoint(true, 2026030802, 'local', 'ai_course_assistant');
     }
 
+    if ($oldversion < 2026030803) {
+        // v1.0.19 patch: rename "ELL Pronunciation" chip to "Pronunciation Practice";
+        // reorder voice chips (Practice Speaking → Pronunciation Practice → Study Plan).
+        // No schema changes needed.
+        upgrade_plugin_savepoint(true, 2026030803, 'local', 'ai_course_assistant');
+    }
+
     return true;
 }
