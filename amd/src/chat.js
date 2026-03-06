@@ -557,6 +557,15 @@ define([
      * Cheaper and more reliable than Realtime; suitable for conversational practice.
      */
     const handlePracticeSpeaking = function() {
+        // Practice Speaking uses the Web Speech API (STT), which also requires HTTPS on iOS.
+        if (!window.isSecureContext || !navigator.mediaDevices) {
+            addAssistantMsg(
+                'Practice Speaking requires a secure connection (HTTPS). ' +
+                'Please use the HTTPS version of this site to access voice features.'
+            );
+            return;
+        }
+
         // Clean up any existing session before starting.
         if (Realtime.isConnected()) { Realtime.disconnect(); }
         // Voice.connect() calls disconnect() internally if already connected.
@@ -608,6 +617,18 @@ define([
      * Uses phoneme-level audio analysis — requires realtime_enabled and an OpenAI key.
      */
     const handleELLPronunciation = function() {
+        // Microphone API requires a secure context (HTTPS). On iOS Chrome even
+        // localhost over HTTP is not treated as secure, so navigator.mediaDevices
+        // is undefined. Fail fast with a clear message rather than the cryptic
+        // "getUserMedia not supported" error from deep inside the Realtime module.
+        if (!window.isSecureContext || !navigator.mediaDevices) {
+            addAssistantMsg(
+                'ELL Pronunciation requires a secure connection (HTTPS). ' +
+                'Please use the HTTPS version of this site to access voice features.'
+            );
+            return;
+        }
+
         // Clean up any existing session (Realtime or Practice Speaking) before starting.
         if (Realtime.isConnected()) { Realtime.disconnect(); }
         if (Voice.isConnected())    { Voice.disconnect(); }
