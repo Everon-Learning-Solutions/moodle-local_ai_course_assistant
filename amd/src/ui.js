@@ -1228,6 +1228,19 @@ define([
         if (typewriterPos >= target) {
             return; // Caught up — more tokens may still arrive
         }
+
+        // If not in follow mode, check whether the message top has reached the
+        // container top. If so, pause the typewriter — don't reveal more text
+        // until the user scrolls down or clicks the down arrow.
+        if (!scrollFollowMode && messagesContainer && streamingEl) {
+            var containerTop = messagesContainer.getBoundingClientRect().top;
+            var msgTop = streamingEl.getBoundingClientRect().top;
+            // Message top is at or above the container top — pause.
+            if (msgTop <= containerTop + 4) {
+                return;
+            }
+        }
+
         typewriterPos = Math.min(typewriterPos + TYPEWRITER_SPEED, target);
         const partial = typewriterFull.substring(0, typewriterPos);
         const content = streamingEl.querySelector('.local-ai-course-assistant__message-content');
@@ -1237,13 +1250,11 @@ define([
             if (scrollFollowMode) {
                 // User scrolled down or clicked the down arrow — follow the bottom.
                 messagesContainer.scrollTop = messagesContainer.scrollHeight;
-            } else if (messagesContainer && streamingEl) {
-                // Auto-scroll to reveal new text, but never scroll the message top
-                // above the top of the visible area.
-                // Use getBoundingClientRect for accurate position regardless of offsetParent.
-                var containerTop = messagesContainer.getBoundingClientRect().top;
-                var msgTop = streamingEl.getBoundingClientRect().top;
-                var msgOffsetInScroll = msgTop - containerTop + messagesContainer.scrollTop;
+            } else if (messagesContainer) {
+                // Auto-scroll to reveal new text, keeping the message top visible.
+                var cTop = messagesContainer.getBoundingClientRect().top;
+                var mTop = streamingEl.getBoundingClientRect().top;
+                var msgOffsetInScroll = mTop - cTop + messagesContainer.scrollTop;
                 var maxScroll = msgOffsetInScroll - 4;
                 var idealScroll = messagesContainer.scrollHeight - messagesContainer.clientHeight;
                 messagesContainer.scrollTop = Math.min(idealScroll, maxScroll);
