@@ -167,12 +167,16 @@ class hook_callbacks {
         $ellpronunciationenabled = $realtimeenabled &&
             (bool)get_config('local_ai_course_assistant', 'ell_pronunciation_course_' . $courseid);
 
-        // TTS proxy URL: available when an OpenAI key is present (realtime or main provider).
+        // TTS proxy URL: available when an OpenAI key is present (realtime or main provider)
+        // AND the per-course Speaking Practice toggle is not explicitly disabled.
         $realtimeapikey = get_config('local_ai_course_assistant', 'realtime_apikey');
         $provider       = get_config('local_ai_course_assistant', 'provider');
         $mainapikey     = get_config('local_ai_course_assistant', 'apikey');
         $hasttskey = !empty($realtimeapikey) || ($provider === 'openai' && !empty($mainapikey));
-        $ttsurl = $hasttskey
+        $speakingpracticeraw = get_config('local_ai_course_assistant', 'speaking_practice_course_' . $courseid);
+        // Default to enabled if never set (preserves existing behaviour for courses without the toggle).
+        $speakingpracticeenabled = ($speakingpracticeraw === false) || (bool)$speakingpracticeraw;
+        $ttsurl = ($hasttskey && $speakingpracticeenabled)
             ? (new \moodle_url('/local/ai_course_assistant/tts.php'))->out(false)
             : '';
 

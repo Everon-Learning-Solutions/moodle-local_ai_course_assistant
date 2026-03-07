@@ -572,15 +572,15 @@
     }
 }
 
-/* Swipe handle bar — appears above header on mobile, used to drag-to-dismiss */
+/* Swipe handle bar — appears above header on mobile, used to drag-to-resize and swipe-to-close */
 .aica-swipe-handle {
     display: none; /* hidden on desktop */
     flex-shrink: 0;
-    height: 20px;
+    height: 28px;
     align-items: center;
     justify-content: center;
     cursor: grab;
-    touch-action: pan-y;
+    touch-action: none;
     -webkit-tap-highlight-color: transparent;
 }
 .aica-swipe-handle::after {
@@ -2564,8 +2564,7 @@
 
 /* Only animate when drawer is closed */
 .local-ai-course-assistant__toggle[aria-expanded="false"] {
-    animation: aica-avatar-bob 3s ease-in-out infinite,
-               aica-avatar-pulse 2.5s ease-out infinite;
+    animation: aica-avatar-pulse 2.5s ease-out infinite;
 }
 
 /* Glow pulse on the toggle button while TTS is active */

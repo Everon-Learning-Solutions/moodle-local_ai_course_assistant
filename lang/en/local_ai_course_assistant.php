@@ -131,6 +131,9 @@ $string['coursesettings:saved'] = 'Course AI settings saved.';
 $string['coursesettings:ell_pronunciation']        = 'Pronunciation Practice Mode';
 $string['coursesettings:ell_pronunciation_desc']   = 'Show the "Pronunciation Practice" chip for students in this course. Uses OpenAI Realtime API for phoneme-level pronunciation feedback. Requires Voice Mode to be enabled in global plugin settings.';
 $string['coursesettings:ell_pronunciation_enable'] = 'Enable Pronunciation Practice chip for this course';
+$string['coursesettings:speaking_practice']        = 'Speaking Practice';
+$string['coursesettings:speaking_practice_desc']   = 'Show the "Practice Speaking" chip for students in this course. Uses OpenAI TTS for voice responses. Requires an OpenAI API key in global plugin settings.';
+$string['coursesettings:speaking_practice_enable'] = 'Enable Speaking Practice chip for this course';
 $string['coursesettings:global_settings_link'] = 'Global AI settings';
 
 // Language detection and preference.

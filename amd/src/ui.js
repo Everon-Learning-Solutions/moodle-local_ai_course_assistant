@@ -773,35 +773,47 @@ define([
      * Safe to call on desktop too — touch events simply never fire there.
      */
     const initMobileGestures = function() {
-        // ── Mobile: swipe-down on swipe handle to close ──────────────────────────
-        // Restricted to the dedicated .aica-swipe-handle bar to avoid accidental
-        // dismissal when scrolling through messages or swiping on content.
+        // ── Mobile: drag swipe handle to resize; drag all the way down to close ──
+        // touch-action:none on .aica-swipe-handle prevents native scroll conflicts.
         var swipeTouchStartY = 0;
         var swipeTouchStartX = 0;
-        var swipeMaxDy = 0;
+        var swipeStartH = 0;
+        var swipeIsDragging = false;
         var swipeHandle = drawer ? drawer.querySelector('.aica-swipe-handle') : null;
         if (swipeHandle) {
             swipeHandle.addEventListener('touchstart', function(e) {
                 swipeTouchStartY = e.touches[0].clientY;
                 swipeTouchStartX = e.touches[0].clientX;
-                swipeMaxDy = 0;
+                swipeStartH = drawer ? drawer.offsetHeight : 0;
+                swipeIsDragging = false;
             }, {passive: true});
 
-            // Track the furthest downward point the finger reaches during the swipe.
             swipeHandle.addEventListener('touchmove', function(e) {
+                if (!drawer) { return; }
+                swipeIsDragging = true;
                 var dy = e.touches[0].clientY - swipeTouchStartY;
-                if (dy > swipeMaxDy) {
-                    swipeMaxDy = dy;
-                }
+                // Drag down → shorter; drag up → taller. Clamp between 150px and 95% viewport.
+                var newH = Math.max(150, Math.min(window.innerHeight * 0.95, swipeStartH - dy));
+                drawer.style.height = newH + 'px';
             }, {passive: true});
 
             swipeHandle.addEventListener('touchend', function(e) {
-                // Use max downward distance reached, not just the lift position.
-                var dy = swipeMaxDy;
+                if (!drawer || !swipeIsDragging) { return; }
+                swipeIsDragging = false;
                 var dx = Math.abs(e.changedTouches[0].clientX - swipeTouchStartX);
-                // Swipe down ≥ 40px, more vertical than horizontal → close drawer.
-                if (dy > 40 && dx < dy) {
+                var finalH = drawer.offsetHeight;
+                if (finalH < 200) {
+                    // Dragged far enough down — close and reset height.
                     closeDrawer();
+                    drawer.style.height = '';
+                } else {
+                    // Save the new size to localStorage.
+                    try {
+                        var stored = localStorage.getItem(SIZE_KEY);
+                        var size = stored ? JSON.parse(stored) : {};
+                        size.height = drawer.style.height;
+                        localStorage.setItem(SIZE_KEY, JSON.stringify(size));
+                    } catch (ex) { /**/ }
                 }
             }, {passive: true});
         }
@@ -1654,36 +1666,28 @@ define([
                 ? '<img src="' + avatarUrl + '" alt="" class="local-ai-course-assistant__welcome-avatar" aria-hidden="true" />'
                 : '') +
             '<h2 class="local-ai-course-assistant__welcome-title">Hi' + welcomeName + ', I\'m SOLA!</h2>' +
-            '<p class="local-ai-course-assistant__welcome-subtitle">Your personal study coach \u2014 not just another chatbot.</p>' +
+            '<p class="local-ai-course-assistant__welcome-subtitle">Your personal study coach.</p>' +
             '<ul class="local-ai-course-assistant__welcome-features">' +
             '<li>' +
             '<span class="local-ai-course-assistant__welcome-feature-icon" aria-hidden="true">\ud83c\udfaf</span>' +
-            '<span><strong>Focused study sessions</strong> \u2014 pick a topic &amp; time limit, I\'ll guide you step by step</span>' +
+            '<span><strong>Focused study sessions</strong> \u2014 pick a topic and time limit</span>' +
             '</li>' +
             '<li>' +
             '<span class="local-ai-course-assistant__welcome-feature-icon" aria-hidden="true">\u26a1</span>' +
-            '<span><strong>Adaptive quizzes</strong> \u2014 I track your scores and focus practice where you need it most</span>' +
+            '<span><strong>Adaptive quizzes</strong> \u2014 targeted practice based on your scores</span>' +
             '</li>' +
             (hasTts
                 ? '<li>' +
                   '<span class="local-ai-course-assistant__welcome-feature-icon" aria-hidden="true">\ud83c\udfa4</span>' +
-                  '<span><strong>Practice Speaking</strong> \u2014 real voice conversations about what you\'re learning</span>' +
+                  '<span><strong>Practice Speaking</strong> \u2014 voice conversations about the course</span>' +
                   '</li>'
                 : '') +
             (hasPronunciation
                 ? '<li>' +
                   '<span class="local-ai-course-assistant__welcome-feature-icon" aria-hidden="true">\ud83d\udd0a</span>' +
-                  '<span><strong>Pronunciation Practice</strong> \u2014 say a word or phrase and get instant coaching</span>' +
+                  '<span><strong>Pronunciation Practice</strong> \u2014 instant feedback on words and phrases</span>' +
                   '</li>'
                 : '') +
-            '<li>' +
-            '<span class="local-ai-course-assistant__welcome-feature-icon" aria-hidden="true">\ud83d\udcc5</span>' +
-            '<span><strong>Personalised study plan</strong> \u2014 share your schedule and I\'ll map out a realistic path</span>' +
-            '</li>' +
-            '<li>' +
-            '<span class="local-ai-course-assistant__welcome-feature-icon" aria-hidden="true">\ud83d\udcac</span>' +
-            '<span><strong>Ask me anything</strong> \u2014 explanations, examples, and guidance 24/7</span>' +
-            '</li>' +
             '</ul>' +
             '<button class="local-ai-course-assistant__welcome-cta">Let\'s get started \u2192</button>';
 

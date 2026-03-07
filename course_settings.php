@@ -88,6 +88,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $ellpronunciation = optional_param('ell_pronunciation_enabled', 0, PARAM_INT);
     set_config('ell_pronunciation_course_' . $courseid, $ellpronunciation, 'local_ai_course_assistant');
 
+    // Speaking Practice toggle — stored separately as plugin config keyed by course.
+    $speakingpractice = optional_param('speaking_practice_enabled', 0, PARAM_INT);
+    set_config('speaking_practice_course_' . $courseid, $speakingpractice, 'local_ai_course_assistant');
+
     redirect($pageurl, get_string('coursesettings:saved', 'local_ai_course_assistant'),
         null, \core\output\notification::NOTIFY_SUCCESS);
 }
@@ -98,6 +102,16 @@ $current = course_config_manager::get($courseid);
 // ELL Pronunciation setting (stored via plugin config, not in course_cfg table).
 $ellpronunciationenabled = (bool)get_config('local_ai_course_assistant', 'ell_pronunciation_course_' . $courseid);
 $realtimeenabled = (bool)get_config('local_ai_course_assistant', 'realtime_enabled');
+
+// Speaking Practice setting.
+$speakingpracticeraw = get_config('local_ai_course_assistant', 'speaking_practice_course_' . $courseid);
+// Default to enabled if never explicitly set (preserve existing behaviour for existing courses).
+$speakingpracticeenabled = ($speakingpracticeraw === false) || (bool)$speakingpracticeraw;
+// TTS available when an OpenAI key is configured globally.
+$realtimeapikey = get_config('local_ai_course_assistant', 'realtime_apikey');
+$provider       = get_config('local_ai_course_assistant', 'provider');
+$mainapikey     = get_config('local_ai_course_assistant', 'apikey');
+$hasttskey = !empty($realtimeapikey) || ($provider === 'openai' && !empty($mainapikey));
 
 // Build provider options.
 $providers = [
@@ -250,6 +264,32 @@ echo html_writer::div(
             </div>
         </div>
     </div>
+
+    <?php if ($hasttskey) { ?>
+    <div class="card mb-3">
+        <div class="card-header">
+            <h5 class="mb-0"><?php echo get_string('coursesettings:speaking_practice', 'local_ai_course_assistant'); ?></h5>
+        </div>
+        <div class="card-body">
+            <p class="text-muted"><?php echo get_string('coursesettings:speaking_practice_desc', 'local_ai_course_assistant'); ?></p>
+            <div class="form-group row">
+                <label class="col-sm-3 col-form-label" for="speaking_practice_enabled">
+                    <?php echo get_string('coursesettings:speaking_practice', 'local_ai_course_assistant'); ?>
+                </label>
+                <div class="col-sm-9">
+                    <div class="custom-control custom-switch">
+                        <input type="checkbox" class="custom-control-input" id="speaking_practice_enabled"
+                               name="speaking_practice_enabled" value="1"
+                               <?php if ($speakingpracticeenabled) { echo 'checked'; } ?>>
+                        <label class="custom-control-label" for="speaking_practice_enabled">
+                            <?php echo get_string('coursesettings:speaking_practice_enable', 'local_ai_course_assistant'); ?>
+                        </label>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <?php } ?>
 
     <?php if ($realtimeenabled) { ?>
     <div class="card mb-3">
