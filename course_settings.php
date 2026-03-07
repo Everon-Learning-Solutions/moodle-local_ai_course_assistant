@@ -360,6 +360,19 @@ echo html_writer::div(
     </div>
     <?php } ?>
 
+    <div class="card mb-3">
+        <div class="card-header">
+            <h5 class="mb-0"><?php echo get_string('coursesettings:token_usage', 'local_ai_course_assistant'); ?></h5>
+        </div>
+        <div class="card-body">
+            <p class="text-muted"><?php echo get_string('coursesettings:token_usage_desc', 'local_ai_course_assistant'); ?></p>
+            <a href="<?php echo (new moodle_url('/local/ai_course_assistant/token_analytics.php', ['courseid' => $courseid]))->out(false); ?>"
+               class="btn btn-sm btn-outline-secondary" target="_blank">
+                <?php echo get_string('coursesettings:token_usage', 'local_ai_course_assistant'); ?> &rarr;
+            </a>
+        </div>
+    </div>
+
     <button type="submit" class="btn btn-primary">
         <?php echo get_string('savechanges'); ?>
     </button>

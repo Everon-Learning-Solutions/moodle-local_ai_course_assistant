@@ -142,6 +142,8 @@ $string['coursesettings:speaking_practice']        = 'Speaking Practice';
 $string['coursesettings:speaking_practice_desc']   = 'Show the "Practice Speaking" chip for students in this course. Uses OpenAI TTS for voice responses. Requires an OpenAI API key in global plugin settings.';
 $string['coursesettings:speaking_practice_enable'] = 'Enable Speaking Practice chip for this course';
 $string['coursesettings:global_settings_link'] = 'Global AI settings';
+$string['coursesettings:token_usage'] = 'Token Usage & Cost';
+$string['coursesettings:token_usage_desc'] = 'View token usage, cost estimates, and per-student breakdowns for this course.';
 
 // Language detection and preference.
 $string['lang:switch'] = 'Yes, switch';
