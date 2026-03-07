@@ -37,6 +37,14 @@
         </div>
     </div>
 
+    {{#token_analytics_url}}
+    <div class="mb-3">
+        <a href="{{token_analytics_url}}" class="btn btn-sm btn-outline-secondary">
+            &#36; Token Usage &amp; Cost &rarr;
+        </a>
+    </div>
+    {{/token_analytics_url}}
+
     {{^has_data}}
     <div class="alert alert-info">
         {{#str}}analytics:no_data, local_ai_course_assistant{{/str}}

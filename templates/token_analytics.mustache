@@ -1,0 +1,205 @@
+{{!
+    Token usage and cost analytics page — admin only.
+
+    @template local_ai_course_assistant/token_analytics
+}}
+
+<style>
+.aica-cost-page { max-width: 1100px; margin: 0 auto; padding: 0 16px 48px; }
+.aica-cost-nav  { display: flex; align-items: center; gap: 12px; margin-bottom: 24px; flex-wrap: wrap; }
+.aica-cost-nav a { color: #4a6cf7; text-decoration: none; font-size: 13px; }
+.aica-cost-nav a:hover { text-decoration: underline; }
+
+.aica-cost-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 16px; margin-bottom: 28px; }
+.aica-cost-card  { background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 16px 20px; }
+.aica-cost-card__label { font-size: 12px; color: #6b7280; text-transform: uppercase; letter-spacing: .04em; margin-bottom: 6px; }
+.aica-cost-card__value { font-size: 26px; font-weight: 700; color: #111827; line-height: 1; }
+.aica-cost-card--highlight .aica-cost-card__value { color: #059669; }
+
+.aica-cost-filters { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 28px; }
+.aica-cost-filters label { font-size: 13px; color: #374151; font-weight: 500; }
+.aica-cost-range-btn { padding: 5px 14px; border: 1px solid #d1d5db; border-radius: 6px; background: #fff;
+    font-size: 13px; color: #374151; text-decoration: none; cursor: pointer; }
+.aica-cost-range-btn.active,
+.aica-cost-range-btn:hover { background: #4a6cf7; border-color: #4a6cf7; color: #fff; }
+.aica-cost-filters select { padding: 5px 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 13px; }
+
+.aica-cost-section { background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; margin-bottom: 28px; overflow: hidden; }
+.aica-cost-section__header { padding: 14px 20px; background: #f9fafb; border-bottom: 1px solid #e5e7eb; }
+.aica-cost-section__title  { font-size: 15px; font-weight: 600; color: #111827; margin: 0; }
+.aica-cost-section__sub    { font-size: 12px; color: #6b7280; margin: 2px 0 0; }
+
+.aica-cost-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.aica-cost-table th { padding: 10px 16px; text-align: left; font-weight: 600; color: #374151;
+    background: #f9fafb; border-bottom: 1px solid #e5e7eb; white-space: nowrap; }
+.aica-cost-table td { padding: 10px 16px; border-bottom: 1px solid #f3f4f6; color: #111827; }
+.aica-cost-table tbody tr:last-child td { border-bottom: none; }
+.aica-cost-table tbody tr:hover td { background: #f9fafb; }
+.aica-cost-table td.num { text-align: right; font-variant-numeric: tabular-nums; }
+.aica-cost-table td.cost { text-align: right; font-weight: 600; color: #059669; font-variant-numeric: tabular-nums; }
+.aica-cost-table td.unknown { color: #9ca3af; }
+
+.aica-cost-alert { margin: 16px 20px; padding: 10px 14px; background: #fffbeb; border: 1px solid #fde68a;
+    border-radius: 6px; font-size: 13px; color: #92400e; }
+.aica-cost-empty { padding: 24px 20px; text-align: center; color: #6b7280; font-size: 14px; }
+
+.aica-rate-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 8px; padding: 16px 20px; }
+.aica-rate-item { display: flex; justify-content: space-between; padding: 6px 10px;
+    background: #f9fafb; border-radius: 6px; font-size: 12px; gap: 12px; }
+.aica-rate-item__model { color: #374151; font-family: monospace; }
+.aica-rate-item__price { color: #6b7280; white-space: nowrap; }
+</style>
+
+<div class="aica-cost-page">
+
+    <div class="aica-cost-nav">
+        <a href="{{analytics_url}}">&larr; Back to Analytics</a>
+        <span style="color:#d1d5db">|</span>
+        <strong style="font-size:20px;color:#111827">Token Usage &amp; Cost</strong>
+    </div>
+
+    {{! ── Filters ─────────────────────────────────────────────────────────── }}
+    <div class="aica-cost-filters">
+        <label>Period:</label>
+        <a href="{{url_7}}"  class="aica-cost-range-btn {{#range_7_active}}active{{/range_7_active}}">7 days</a>
+        <a href="{{url_30}}" class="aica-cost-range-btn {{#range_30_active}}active{{/range_30_active}}">30 days</a>
+        <a href="{{url_90}}" class="aica-cost-range-btn {{#range_90_active}}active{{/range_90_active}}">90 days</a>
+        <a href="{{url_all}}"class="aica-cost-range-btn {{#range_all_active}}active{{/range_all_active}}">All time</a>
+        &nbsp;
+        <label for="aica-course-select">Course:</label>
+        <select id="aica-course-select" onchange="window.location=this.value">
+            {{#courses}}
+            <option value="/local/ai_course_assistant/token_analytics.php?range={{../range}}&amp;courseid={{id}}"
+                {{#selected}}selected{{/selected}}>{{name}}</option>
+            {{/courses}}
+        </select>
+    </div>
+
+    {{! ── Summary cards ───────────────────────────────────────────────────── }}
+    <div class="aica-cost-cards">
+        <div class="aica-cost-card">
+            <div class="aica-cost-card__label">AI Responses</div>
+            <div class="aica-cost-card__value">{{grand_responses}}</div>
+        </div>
+        <div class="aica-cost-card">
+            <div class="aica-cost-card__label">Prompt Tokens</div>
+            <div class="aica-cost-card__value">{{grand_prompt}}</div>
+        </div>
+        <div class="aica-cost-card">
+            <div class="aica-cost-card__label">Completion Tokens</div>
+            <div class="aica-cost-card__value">{{grand_completion}}</div>
+        </div>
+        <div class="aica-cost-card">
+            <div class="aica-cost-card__label">Total Tokens</div>
+            <div class="aica-cost-card__value">{{grand_total_tokens}}</div>
+        </div>
+        <div class="aica-cost-card aica-cost-card--highlight">
+            <div class="aica-cost-card__label">Estimated Cost</div>
+            <div class="aica-cost-card__value">{{grand_cost}}</div>
+        </div>
+    </div>
+
+    {{! ── By model ────────────────────────────────────────────────────────── }}
+    <div class="aica-cost-section">
+        <div class="aica-cost-section__header">
+            <p class="aica-cost-section__title">Cost by Model</p>
+            <p class="aica-cost-section__sub">Responses with confirmed token data, grouped by model and provider.</p>
+        </div>
+        {{#has_by_model}}
+        <table class="aica-cost-table">
+            <thead>
+                <tr>
+                    <th>Model</th>
+                    <th>Provider</th>
+                    <th style="text-align:right">Responses</th>
+                    <th style="text-align:right">Prompt tokens</th>
+                    <th style="text-align:right">Completion tokens</th>
+                    <th style="text-align:right">Total tokens</th>
+                    <th style="text-align:right">Est. cost</th>
+                </tr>
+            </thead>
+            <tbody>
+                {{#by_model}}
+                <tr>
+                    <td><code>{{model}}</code></td>
+                    <td>{{provider}}</td>
+                    <td class="num">{{response_count}}</td>
+                    <td class="num">{{prompt_tokens}}</td>
+                    <td class="num">{{completion_tokens}}</td>
+                    <td class="num">{{total_tokens}}</td>
+                    <td class="{{#cost_unknown}}unknown{{/cost_unknown}}{{^cost_unknown}}cost{{/cost_unknown}}">
+                        {{estimated_cost}}
+                    </td>
+                </tr>
+                {{/by_model}}
+            </tbody>
+        </table>
+        {{/has_by_model}}
+        {{^has_by_model}}
+        <p class="aica-cost-empty">No token data recorded yet. Token tracking begins with v1.1.0.</p>
+        {{/has_by_model}}
+        {{#has_missing}}
+        <div class="aica-cost-alert">
+            &#9888; <strong>{{missing_count}}</strong> assistant messages in this period have no token data
+            (generated before v1.1.0 or by a provider that does not report usage).
+        </div>
+        {{/has_missing}}
+    </div>
+
+    {{! ── Per student ─────────────────────────────────────────────────────── }}
+    <div class="aica-cost-section">
+        <div class="aica-cost-section__header">
+            <p class="aica-cost-section__title">Cost per Student</p>
+            <p class="aica-cost-section__sub">Top 100 students by token usage. Cost estimated using the model of their most recent session.</p>
+        </div>
+        {{#has_by_student}}
+        <table class="aica-cost-table">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Student</th>
+                    <th style="text-align:right">Responses</th>
+                    <th style="text-align:right">Prompt tokens</th>
+                    <th style="text-align:right">Completion tokens</th>
+                    <th style="text-align:right">Total tokens</th>
+                    <th style="text-align:right">Est. cost</th>
+                </tr>
+            </thead>
+            <tbody>
+                {{#by_student}}
+                <tr>
+                    <td style="color:#9ca3af;font-size:11px">{{@index_1}}</td>
+                    <td>{{name}}</td>
+                    <td class="num">{{response_count}}</td>
+                    <td class="num">{{prompt_tokens}}</td>
+                    <td class="num">{{completion_tokens}}</td>
+                    <td class="num">{{total_tokens}}</td>
+                    <td class="cost">{{estimated_cost}}</td>
+                </tr>
+                {{/by_student}}
+            </tbody>
+        </table>
+        {{/has_by_student}}
+        {{^has_by_student}}
+        <p class="aica-cost-empty">No token data recorded yet.</p>
+        {{/has_by_student}}
+    </div>
+
+    {{! ── Rate card reference ─────────────────────────────────────────────── }}
+    <div class="aica-cost-section">
+        <div class="aica-cost-section__header">
+            <p class="aica-cost-section__title">Rate Card Reference</p>
+            <p class="aica-cost-section__sub">USD per 1,000,000 tokens. Model strings are matched by prefix.
+               Update <code>classes/token_cost_manager.php</code> when provider pricing changes.</p>
+        </div>
+        <div class="aica-rate-grid">
+            {{#rate_cards}}
+            <div class="aica-rate-item">
+                <span class="aica-rate-item__model">{{model}}</span>
+                <span class="aica-rate-item__price">in {{input_per_1m}} / out {{output_per_1m}}</span>
+            </div>
+            {{/rate_cards}}
+        </div>
+    </div>
+
+</div>

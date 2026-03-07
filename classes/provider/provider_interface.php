@@ -46,4 +46,15 @@ interface provider_interface {
      * @throws \moodle_exception On API errors.
      */
     public function chat_completion_stream(string $systemprompt, array $messages, callable $callback, array $options = []): void;
+
+    /**
+     * Get token usage from the last streaming call.
+     *
+     * Must be called immediately after chat_completion_stream() completes.
+     * Returns null if the provider does not report usage data.
+     *
+     * @return array|null Array with keys 'prompt_tokens' (int), 'completion_tokens' (int),
+     *                    'model' (string), or null if not available.
+     */
+    public function get_last_token_usage(): ?array;
 }

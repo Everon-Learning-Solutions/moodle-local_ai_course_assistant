@@ -28,6 +28,18 @@ namespace local_ai_course_assistant\provider;
  */
 abstract class openai_compatible_provider extends base_provider {
 
+    /** @var array|null Token usage from the last streaming call */
+    protected ?array $last_token_usage = null;
+
+    /**
+     * Get token usage from the last streaming call.
+     *
+     * @return array|null ['prompt_tokens', 'completion_tokens', 'model'] or null.
+     */
+    public function get_last_token_usage(): ?array {
+        return $this->last_token_usage;
+    }
+
     /**
      * Get the chat completions endpoint path.
      *
@@ -87,6 +99,8 @@ abstract class openai_compatible_provider extends base_provider {
 
         if ($stream) {
             $body['stream'] = true;
+            // Request usage data in the final streaming chunk.
+            $body['stream_options'] = ['include_usage' => true];
         }
 
         return json_encode($body);
@@ -110,6 +124,7 @@ abstract class openai_compatible_provider extends base_provider {
         $body = $this->build_body($systemprompt, $messages, true, $options);
 
         $buffer = '';
+        $this->last_token_usage = null;
 
         $this->http_post_stream($url, $this->get_headers(), $body, function ($data) use ($callback, &$buffer) {
             $buffer .= $data;
@@ -131,6 +146,16 @@ abstract class openai_compatible_provider extends base_provider {
                 $event = json_decode($json, true);
                 if (!$event) {
                     continue;
+                }
+
+                // Capture usage from the final usage-only chunk (stream_options: include_usage: true).
+                // This chunk has empty choices[] and a populated usage object.
+                if (!empty($event['usage'])) {
+                    $this->last_token_usage = [
+                        'prompt_tokens'     => (int) ($event['usage']['prompt_tokens'] ?? 0),
+                        'completion_tokens' => (int) ($event['usage']['completion_tokens'] ?? 0),
+                        'model'             => $event['model'] ?? $this->model,
+                    ];
                 }
 
                 $content = $event['choices'][0]['delta']['content'] ?? '';

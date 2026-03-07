@@ -189,6 +189,9 @@ try {
         sse_send(['token' => $chunk]);
     });
 
+    // Capture token usage immediately after streaming — before any other operations.
+    $tokenusage = $provider->get_last_token_usage();
+
     // Process markers in the response before saving.
     $cleanresponse = $fullresponse;
     $wasofftopic = false;
@@ -211,7 +214,18 @@ try {
     // Save the clean assistant response (without markers), recording which provider was used.
     $effectivecfg = \local_ai_course_assistant\course_config_manager::get_effective_config($courseid);
     $providername = $effectivecfg['provider'] ?? get_config('local_ai_course_assistant', 'provider');
-    conversation_manager::add_message($conv->id, $userid, $courseid, 'assistant', $cleanresponse, 0, $providername);
+    conversation_manager::add_message(
+        $conv->id,
+        $userid,
+        $courseid,
+        'assistant',
+        $cleanresponse,
+        0,
+        $providername,
+        $tokenusage['prompt_tokens'] ?? null,
+        $tokenusage['completion_tokens'] ?? null,
+        $tokenusage['model'] ?? null
+    );
 
     // Handle off-topic tracking.
     if ($offtopicenabled) {

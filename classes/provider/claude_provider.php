@@ -30,6 +30,18 @@ class claude_provider extends base_provider {
     /** @var string Anthropic API version */
     private const API_VERSION = '2023-06-01';
 
+    /** @var array|null Token usage from the last streaming call */
+    private ?array $last_token_usage = null;
+
+    /**
+     * Get token usage from the last streaming call.
+     *
+     * @return array|null ['prompt_tokens', 'completion_tokens', 'model'] or null.
+     */
+    public function get_last_token_usage(): ?array {
+        return $this->last_token_usage;
+    }
+
     protected function get_default_model(): string {
         return 'claude-sonnet-4-5-20250929';
     }
@@ -99,6 +111,7 @@ class claude_provider extends base_provider {
         $body = $this->build_body($systemprompt, $messages, true, $options);
 
         $buffer = '';
+        $this->last_token_usage = null;
 
         $this->http_post_stream($url, $this->get_headers(), $body, function ($data) use ($callback, &$buffer) {
             $buffer .= $data;
@@ -123,8 +136,26 @@ class claude_provider extends base_provider {
                     continue;
                 }
 
-                // Anthropic streams content_block_delta events.
-                if (($event['type'] ?? '') === 'content_block_delta') {
+                $eventtype = $event['type'] ?? '';
+
+                // message_start carries input token count and the model name.
+                if ($eventtype === 'message_start') {
+                    $this->last_token_usage = [
+                        'prompt_tokens'     => (int) ($event['message']['usage']['input_tokens'] ?? 0),
+                        'completion_tokens' => 0,
+                        'model'             => $event['message']['model'] ?? $this->model,
+                    ];
+                }
+
+                // message_delta carries output (completion) token count.
+                if ($eventtype === 'message_delta' && isset($event['usage']['output_tokens'])) {
+                    if ($this->last_token_usage !== null) {
+                        $this->last_token_usage['completion_tokens'] = (int) $event['usage']['output_tokens'];
+                    }
+                }
+
+                // content_block_delta carries the actual text chunks.
+                if ($eventtype === 'content_block_delta') {
                     $text = $event['delta']['text'] ?? '';
                     if ($text !== '') {
                         $callback($text);

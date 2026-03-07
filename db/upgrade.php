@@ -238,5 +238,28 @@ function xmldb_local_ai_course_assistant_upgrade($oldversion) {
         upgrade_plugin_savepoint(true, 2026030805, 'local', 'ai_course_assistant');
     }
 
+    if ($oldversion < 2026030900) {
+        // v1.1.0: Token usage tracking and cost estimation.
+        // Add prompt_tokens, completion_tokens, model_name to the messages table.
+        $table = new xmldb_table('local_ai_course_assistant_msgs');
+
+        $field = new xmldb_field('prompt_tokens', XMLDB_TYPE_INTEGER, '10', null, false, null, null, 'tokens_used');
+        if (!$dbman->field_exists($table, $field)) {
+            $dbman->add_field($table, $field);
+        }
+
+        $field = new xmldb_field('completion_tokens', XMLDB_TYPE_INTEGER, '10', null, false, null, null, 'prompt_tokens');
+        if (!$dbman->field_exists($table, $field)) {
+            $dbman->add_field($table, $field);
+        }
+
+        $field = new xmldb_field('model_name', XMLDB_TYPE_CHAR, '100', null, false, null, null, 'completion_tokens');
+        if (!$dbman->field_exists($table, $field)) {
+            $dbman->add_field($table, $field);
+        }
+
+        upgrade_plugin_savepoint(true, 2026030900, 'local', 'ai_course_assistant');
+    }
+
     return true;
 }

@@ -189,6 +189,18 @@ abstract class base_provider implements provider_interface {
     }
 
     /**
+     * Get token usage from the last streaming call.
+     *
+     * Default implementation returns null. Providers that support usage reporting
+     * (OpenAI-compatible with stream_options, Claude) override this.
+     *
+     * @return array|null
+     */
+    public function get_last_token_usage(): ?array {
+        return null;
+    }
+
+    /**
      * Factory method to create a provider from plugin config, with optional per-course overrides.
      *
      * @param int $courseid Course ID to look up per-course overrides (0 = use global only).

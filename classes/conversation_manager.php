@@ -77,7 +77,10 @@ class conversation_manager {
         string $role,
         string $message,
         int $tokensused = 0,
-        string $provider = ''
+        string $provider = '',
+        ?int $prompttokens = null,
+        ?int $completiontokens = null,
+        ?string $modelname = null
     ): int {
         global $DB;
 
@@ -87,7 +90,13 @@ class conversation_manager {
         $record->courseid = $courseid;
         $record->role = $role;
         $record->message = $message;
-        $record->tokens_used = $tokensused;
+        // Keep tokens_used as the sum for backward compatibility with existing analytics queries.
+        $record->tokens_used = ($prompttokens !== null && $completiontokens !== null)
+            ? ($prompttokens + $completiontokens)
+            : $tokensused;
+        $record->prompt_tokens     = $prompttokens;
+        $record->completion_tokens = $completiontokens;
+        $record->model_name        = ($role === 'assistant' && $modelname !== null) ? $modelname : null;
         $record->provider = ($role === 'assistant' && $provider !== '') ? $provider : null;
         $record->timecreated = time();
 
