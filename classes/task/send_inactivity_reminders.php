@@ -77,9 +77,19 @@ class send_inactivity_reminders extends \core\task\scheduled_task {
                 . "— {$displayName}";
 
             try {
-                \local_ai_course_assistant\reminder_manager::send_email_reminder(
-                    $rec->userid, $rec->destination, $subject, $body
-                );
+                $user = $DB->get_record('user', ['id' => $rec->userid], '*', MUST_EXIST);
+                $message = new \core\message\message();
+                $message->component = 'local_ai_course_assistant';
+                $message->name = 'study_reminder';
+                $message->userfrom = \core_user::get_noreply_user();
+                $message->userto = $user;
+                $message->subject = $subject;
+                $message->fullmessage = $body;
+                $message->fullmessageformat = FORMAT_PLAIN;
+                $message->fullmessagehtml = nl2br(s($body));
+                $message->smallmessage = $subject;
+                $message->notification = 1;
+                message_send($message);
                 \local_ai_course_assistant\reminder_manager::mark_sent($rec->id);
                 $sent++;
             } catch (\Throwable $e) {
