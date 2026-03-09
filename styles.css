@@ -1458,6 +1458,31 @@
 .local-ai-course-assistant__btn-speak--active .aica-icon-stop  { display: inline; }
 
 /* =========================================================
+   Source attribution pill
+   ========================================================= */
+.aica-source-pill {
+    display: inline-block;
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 10px;
+    margin-top: 6px;
+    opacity: 0.7;
+    cursor: default;
+}
+.aica-source-pill--page {
+    background: #e8f5e9;
+    color: #2e7d32;
+}
+.aica-source-pill--course {
+    background: #e3f2fd;
+    color: #1565c0;
+}
+.aica-source-pill--general {
+    background: #fff3e0;
+    color: #e65100;
+}
+
+/* =========================================================
    Edit button — last user message
    Mirrors assistant msg-actions but anchored bottom-left
    ========================================================= */

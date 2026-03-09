@@ -185,6 +185,24 @@ try {
         $courseid, $userid, $lang, $retrievedchunks, $pageid, $pagetitle
     );
 
+    // Inject full page content when the student is viewing a specific resource.
+    if ($pageid > 0) {
+        $pagecontent = context_builder::get_module_content($pageid, 12000);
+        if (!empty($pagecontent)) {
+            // Replace the title-only page context with full content.
+            $marker = "## Current Page\n";
+            $pos = strpos($systemprompt, $marker);
+            if ($pos !== false) {
+                // Remove everything from the marker to the end.
+                $systemprompt = substr($systemprompt, 0, $pos);
+            }
+            $systemprompt .= "## Current Page Content\n"
+                . "The student is currently viewing \"{$pagetitle}\". Here is the full text of this page:\n\n"
+                . $pagecontent
+                . "\n\nUse this content to give specific, grounded answers. Quote relevant passages when helpful.";
+        }
+    }
+
     // Append coaching style instruction if the student set a preference.
     if (!empty($coachstyle)) {
         $styles = [

@@ -165,6 +165,9 @@ class context_builder {
         // Append AI literacy instructions.
         $prompt .= self::get_ai_literacy_instructions();
 
+        // Append source attribution instructions.
+        $prompt .= self::get_source_attribution_instructions();
+
         // Append next-steps suggestion instructions.
         $prompt .= self::get_next_steps_instructions();
 
@@ -211,15 +214,14 @@ class context_builder {
 
     /**
      * Extract readable text content from a single course module (page or book).
-     * Used by quiz generation to focus on the student's current page/resource.
+     * Used by quiz generation and system prompt page injection.
      *
      * @param int $cmid Course module ID
+     * @param int $maxchars Maximum characters to return (default 6000 for quizzes, 12000 for prompt injection).
      * @return string Extracted text, or empty string if unavailable/unsupported.
      */
-    public static function get_module_content(int $cmid): string {
+    public static function get_module_content(int $cmid, int $maxchars = 6000): string {
         global $DB;
-
-        $maxchars = 6000;
 
         try {
             $cmrec  = $DB->get_record('course_modules', ['id' => $cmid], 'id,course,module,instance', MUST_EXIST);
@@ -247,12 +249,13 @@ class context_builder {
                 );
                 if ($chapters) {
                     $parts = [];
+                    $perchapter = ($maxchars > 6000) ? 2400 : 1200;
                     foreach ($chapters as $ch) {
                         $text = strip_tags(format_text($ch->content, $ch->contentformat));
                         $text = preg_replace('/\s+/', ' ', trim($text));
                         if (strlen($text) > 50) {
                             $heading = !empty($ch->title) ? "{$ch->title}: " : '';
-                            $parts[] = $heading . substr($text, 0, 1200);
+                            $parts[] = $heading . substr($text, 0, $perchapter);
                         }
                     }
                     if ($parts) {
@@ -569,6 +572,24 @@ class context_builder {
             . "5. Celebrate any partial understanding: \"You've actually got the first part right — let's build from there.\"\n"
             . "6. Never say \"it's easy\" or \"it's simple\" — this invalidates their struggle.\n"
             . "7. If they seem overwhelmed, suggest focusing on just one small piece rather than everything at once.";
+    }
+
+    /**
+     * Get source attribution instructions.
+     *
+     * Instructs the AI to tag where its answers come from so the UI can
+     * render a small source pill beneath each assistant message.
+     *
+     * @return string
+     */
+    private static function get_source_attribution_instructions(): string {
+        return "\n\n## Source Attribution\n"
+            . "After your response (but BEFORE the [SOLA_NEXT] block), indicate the primary source "
+            . "of your answer on its own line using exactly one of these tags:\n"
+            . "[SOURCE:page] — your answer is primarily based on the current page content\n"
+            . "[SOURCE:course] — your answer draws from other course materials (not the current page)\n"
+            . "[SOURCE:general] — your answer uses general knowledge not found in the course materials\n\n"
+            . "Always include exactly one [SOURCE:xxx] tag. Place it on its own line just before [SOLA_NEXT].";
     }
 
     /**

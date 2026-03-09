@@ -2163,6 +2163,7 @@ define([
         Repo.getHistory(courseId).then(function(result) {
             if (result.messages && result.messages.length > 0) {
                 const NEXT_RE = /\n*\[SOLA_NEXT\]([\s\S]*?)\[\/SOLA_NEXT\]/;
+                const SOURCE_RE = /\n*\[SOURCE:(page|course|general)\]/;
                 let lastSuggestions = [];
                 let prevDateKey = null;
                 const today = new Date();
@@ -2191,6 +2192,7 @@ define([
                     }
 
                     let text = msg.message;
+                    let histSourceType = null;
                     if (msg.role === 'assistant') {
                         const match = text.match(NEXT_RE);
                         if (match) {
@@ -2201,9 +2203,32 @@ define([
                         } else {
                             lastSuggestions = [];
                         }
+                        // Strip source attribution tag.
+                        const srcMatch = text.match(SOURCE_RE);
+                        if (srcMatch) {
+                            histSourceType = srcMatch[1];
+                            text = text.replace(SOURCE_RE, '').trimEnd();
+                        }
                     }
                     if (msg.role === 'assistant') {
                         addAssistantMsg(text, msg.timecreated ? msg.timecreated * 1000 : null);
+                        // Append source pill for history messages.
+                        if (histSourceType) {
+                            const SOURCE_LABELS = {
+                                page: 'From: Current Page',
+                                course: 'From: Course Materials',
+                                general: 'General Knowledge'
+                            };
+                            const allMsgs = document.querySelectorAll(
+                                '.local-ai-course-assistant__message--assistant');
+                            const lastEl = allMsgs.length ? allMsgs[allMsgs.length - 1] : null;
+                            if (lastEl) {
+                                const pill = document.createElement('span');
+                                pill.className = 'aica-source-pill aica-source-pill--' + histSourceType;
+                                pill.textContent = SOURCE_LABELS[histSourceType] || histSourceType;
+                                lastEl.appendChild(pill);
+                            }
+                        }
                     } else {
                         UI.addMessage('user', text, null, msg.timecreated ? msg.timecreated * 1000 : null);
                     }
@@ -2350,6 +2375,7 @@ define([
                 UI.showTyping(false);
                 if (fullText) {
                     const NEXT_RE = /\n*\[SOLA_NEXT\]([\s\S]*?)\[\/SOLA_NEXT\]/;
+                    const SOURCE_RE = /\n*\[SOURCE:(page|course|general)\]/;
                     const match = fullText.match(NEXT_RE);
                     let suggestions = [];
                     let displayText = fullText;
@@ -2358,7 +2384,31 @@ define([
                             .filter(Boolean).slice(0, 4);
                         displayText = fullText.replace(NEXT_RE, '').trimEnd();
                     }
+                    // Parse source attribution.
+                    const sourceMatch = displayText.match(SOURCE_RE);
+                    let sourceType = null;
+                    if (sourceMatch) {
+                        sourceType = sourceMatch[1];
+                        displayText = displayText.replace(SOURCE_RE, '').trimEnd();
+                    }
                     UI.finishStreaming(displayText, (getTtsUrl() || Speech.isTTSSupported()) ? handleSpeak : null);
+                    // Append source pill to the last assistant message.
+                    if (sourceType) {
+                        const SOURCE_LABELS = {
+                            page: 'From: Current Page',
+                            course: 'From: Course Materials',
+                            general: 'General Knowledge'
+                        };
+                        const msgs = document.querySelectorAll(
+                            '.local-ai-course-assistant__message--assistant');
+                        const lastMsg = msgs.length ? msgs[msgs.length - 1] : null;
+                        if (lastMsg) {
+                            const pill = document.createElement('span');
+                            pill.className = 'aica-source-pill aica-source-pill--' + sourceType;
+                            pill.textContent = SOURCE_LABELS[sourceType] || sourceType;
+                            lastMsg.appendChild(pill);
+                        }
+                    }
                     if (suggestions.length) {
                         UI.showSuggestions(suggestions, handleSuggestionClick);
                     } else if (fullText.trim().length > 0) {

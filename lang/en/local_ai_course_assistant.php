@@ -478,3 +478,13 @@ $string['settings:realtime_apikey']       = 'OpenAI API Key (Voice & TTS)';
 $string['settings:realtime_apikey_desc']  = 'Used for Voice Mode and the TTS speak button on messages. Leave blank to fall back to the main API key when provider is set to OpenAI.';
 $string['settings:realtime_voice']        = 'SOLA Voice';
 $string['settings:realtime_voice_desc']   = 'Voice used for both Voice Mode and the TTS speak button (OpenAI voices: Shimmer, Alloy, Echo, Fable, Onyx, Nova).';
+
+// Mobile app.
+$string['mobile_welcome']       = 'Hi, {$a}!';
+$string['mobile_welcome_sub']   = 'I\'m SOLA, your learning assistant. How can I help you today?';
+$string['mobile_placeholder']   = 'Ask a question...';
+$string['mobile_clear']         = 'Clear history';
+$string['mobile_disabled']      = 'SOLA is not available for this course.';
+$string['mobile_chip_concepts'] = 'Key Concepts';
+$string['mobile_chip_studyplan'] = 'Study Plan';
+$string['mobile_chip_quiz']     = 'Quiz Me';
