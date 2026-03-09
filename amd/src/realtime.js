@@ -34,10 +34,8 @@ define([], function() {
         '("You might say: \'...\'"), offer pronunciation tips when speech sounds unclear. ' +
         'For pronunciation practice, speak a target phrase clearly, then listen to the learner repeat it ' +
         'and give specific encouraging feedback. ' +
-        'After each response, append exactly one line: [SOLA_NEXT]chip1||chip2||chip3[/SOLA_NEXT] ' +
-        'where each chip is a short suggestion the learner might say or practice next ' +
-        '(e.g. a word to pronounce, a conversation topic, or a follow-up question). ' +
-        'Never read the [SOLA_NEXT] tag aloud.';
+        'Do NOT include any markup, tags, or bracketed instructions in your responses. ' +
+        'Keep your output as natural spoken language only.';
 
     /** @type {WebSocket|null} */
     var ws = null;
@@ -419,28 +417,22 @@ define([], function() {
             case 'response.output_audio_transcript.delta':
                 if (msg.delta) {
                     assistantTranscript += msg.delta;
-                    // Strip [SOLA_NEXT] tags from displayed transcript.
-                    // Also hold back any partial tag prefix at the end (e.g. "[SOLA_NEXT"
-                    // without closing "]") so it doesn't leak into the visible transcript.
-                    var solaIdx = assistantTranscript.indexOf('[SOLA_NEXT]');
-                    var visibleEnd;
-                    if (solaIdx !== -1) {
-                        visibleEnd = solaIdx;
-                    } else {
-                        // Check for partial tag prefix at the end of the transcript.
-                        var solaTag = '[SOLA_NEXT]';
-                        var holdBack = 0;
-                        for (var pfx = 1; pfx <= solaTag.length && pfx <= assistantTranscript.length; pfx++) {
-                            if (assistantTranscript.slice(-pfx) === solaTag.slice(0, pfx)) {
-                                holdBack = pfx;
-                            }
-                        }
-                        visibleEnd = assistantTranscript.length - holdBack;
+                    // Emit new transcript text to the UI.
+                    // Safety: strip any stray [SOLA_NEXT or [SOURCE tags that
+                    // might appear if older instructions are cached.
+                    var cleanEnd = assistantTranscript.length;
+                    var bracketIdx = assistantTranscript.indexOf('[SOLA_');
+                    if (bracketIdx !== -1) {
+                        cleanEnd = bracketIdx;
                     }
-                    if (visibleEnd > transcriptEmitted && onTranscriptCb) {
-                        onTranscriptCb('assistant', assistantTranscript.slice(transcriptEmitted, visibleEnd));
+                    var sourceIdx = assistantTranscript.indexOf('[SOURCE');
+                    if (sourceIdx !== -1 && sourceIdx < cleanEnd) {
+                        cleanEnd = sourceIdx;
                     }
-                    transcriptEmitted = visibleEnd;
+                    if (cleanEnd > transcriptEmitted && onTranscriptCb) {
+                        onTranscriptCb('assistant', assistantTranscript.slice(transcriptEmitted, cleanEnd));
+                    }
+                    transcriptEmitted = cleanEnd;
                 }
                 break;
 
@@ -455,16 +447,14 @@ define([], function() {
                 break;
 
             case 'response.done':
-                // Parse SOLA_NEXT suggestions from accumulated transcript.
-                if (onSuggestionsCb && assistantTranscript) {
-                    var nextMatch = assistantTranscript.match(/\[SOLA_NEXT\]([\s\S]*?)\[\/SOLA_NEXT\]/);
-                    if (nextMatch) {
-                        var chips = nextMatch[1].split('||').map(function(s) { return s.trim(); })
-                            .filter(function(s) { return s.length > 0; });
-                        if (chips.length) {
-                            onSuggestionsCb(chips);
-                        }
-                    }
+                // Show hardcoded ELL practice chips (SOLA_NEXT is unreliable in audio mode).
+                if (onSuggestionsCb) {
+                    onSuggestionsCb([
+                        'Try another phrase',
+                        'Correct my grammar',
+                        'Speak more slowly',
+                        'End practice'
+                    ]);
                 }
                 assistantTranscript = '';
                 transcriptEmitted = 0;

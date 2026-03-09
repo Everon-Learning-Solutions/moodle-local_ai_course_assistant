@@ -885,7 +885,7 @@ define([
                 if (moduleTitles.length) {
                     ellInstructions += ' Course topics include: ' + moduleTitles.slice(0, 8).join(', ') + '.';
                 }
-                ellInstructions += ' Base your SOLA_NEXT suggestions on the course content when possible.';
+                ellInstructions += ' Use course content for pronunciation examples when possible.';
 
                 Realtime.connect(
                     token,

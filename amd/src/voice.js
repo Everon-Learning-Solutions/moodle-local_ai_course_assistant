@@ -320,6 +320,10 @@ define(['local_ai_course_assistant/sse_client'], function(SSE) {
                 startMediaRecording();
             } else if (recognition) {
                 try { recognition.start(); } catch (e) { /**/ }
+            } else {
+                // recognition is null — first call after greeting TTS finished.
+                // Create the recognition instance now.
+                startRecognition();
             }
         }, 50); // was 300ms — reduced for snappier turn-around
     };
@@ -739,12 +743,25 @@ define(['local_ai_course_assistant/sse_client'], function(SSE) {
             if (event.error === 'no-speech' || event.error === 'aborted') {
                 return;
             }
+            if (event.error === 'not-allowed') {
+                if (onErrorCb) {
+                    onErrorCb('Microphone access denied. Please allow microphone access in your browser settings and try again.');
+                }
+                disconnect();
+                return;
+            }
             if (onErrorCb) {
                 onErrorCb('Speech recognition error: ' + event.error);
             }
         };
 
-        try { recognition.start(); } catch (e) { /**/ }
+        try {
+            recognition.start();
+        } catch (e) {
+            if (onErrorCb) {
+                onErrorCb('Could not start speech recognition. Please check microphone permissions.');
+            }
+        }
     };
 
     // ── Public API ────────────────────────────────────────────────────────────
