@@ -22,7 +22,7 @@
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
-require_once(__DIR__ . '/../../../config.php');
+require_once(__DIR__ . '/../../config.php');
 require_login();
 require_capability('moodle/site:config', \context_system::instance());
 
@@ -128,6 +128,28 @@ echo $OUTPUT->header();
 <div class="aica-starters-admin">
     <p><?php echo get_string('starters:admin_desc', 'local_ai_course_assistant'); ?></p>
 
+    <div class="aica-admin-actions mb-3">
+        <form method="post" style="display: inline;">
+            <input type="hidden" name="sesskey" value="<?php echo sesskey(); ?>">
+            <input type="hidden" name="action" value="save">
+            <input type="hidden" name="starters_json" class="aica-starters-json" value="">
+            <button type="submit" class="btn btn-primary aica-save-btn">
+                <?php echo get_string('starters:save', 'local_ai_course_assistant'); ?>
+            </button>
+        </form>
+        <form method="post" style="display: inline;" onsubmit="return confirm('<?php echo get_string('starters:reset_confirm', 'local_ai_course_assistant'); ?>');">
+            <input type="hidden" name="sesskey" value="<?php echo sesskey(); ?>">
+            <input type="hidden" name="action" value="reset">
+            <button type="submit" class="btn btn-outline-secondary">
+                <?php echo get_string('starters:reset_defaults', 'local_ai_course_assistant'); ?>
+            </button>
+        </form>
+        <a href="<?php echo (new moodle_url('/admin/settings.php', ['section' => 'local_ai_course_assistant']))->out(); ?>"
+           class="btn btn-outline-secondary">
+            <?php echo get_string('starters:back_settings', 'local_ai_course_assistant'); ?>
+        </a>
+    </div>
+
     <div id="aica-starters-list"></div>
 
     <button type="button" class="aica-btn-add" id="aica-add-starter">
@@ -139,8 +161,8 @@ echo $OUTPUT->header();
         <form method="post" style="display: inline;">
             <input type="hidden" name="sesskey" value="<?php echo sesskey(); ?>">
             <input type="hidden" name="action" value="save">
-            <input type="hidden" name="starters_json" id="aica-starters-json" value="">
-            <button type="submit" class="btn btn-primary" id="aica-save-btn">
+            <input type="hidden" name="starters_json" class="aica-starters-json" value="">
+            <button type="submit" class="btn btn-primary aica-save-btn">
                 <?php echo get_string('starters:save', 'local_ai_course_assistant'); ?>
             </button>
         </form>
@@ -358,15 +380,20 @@ echo $OUTPUT->header();
         }
     });
 
-    // Save: serialize starters to hidden field.
-    document.getElementById('aica-save-btn').addEventListener('click', function() {
-        // Generate keys for new custom starters based on name.
-        starters.forEach(function(s) {
-            if (!s.builtin && s.key.indexOf('custom-') === 0) {
-                s.key = slug(s.name);
-            }
+    // Save: serialize starters to all hidden fields (top + bottom forms).
+    document.querySelectorAll('.aica-save-btn').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            // Generate keys for new custom starters based on name.
+            starters.forEach(function(s) {
+                if (!s.builtin && s.key.indexOf('custom-') === 0) {
+                    s.key = slug(s.name);
+                }
+            });
+            var json = JSON.stringify(starters);
+            document.querySelectorAll('.aica-starters-json').forEach(function(el) {
+                el.value = json;
+            });
         });
-        document.getElementById('aica-starters-json').value = JSON.stringify(starters);
     });
 
     renderAll();

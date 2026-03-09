@@ -35,54 +35,11 @@ if ($hassiteconfig) {
         0
     ));
 
-    // Conversation Starters link.
-    $startersurl = new moodle_url('/local/ai_course_assistant/starter_settings.php');
-    $settings->add(new admin_setting_description(
-        'local_ai_course_assistant/starters_link',
-        get_string('starters:admin_title', 'local_ai_course_assistant'),
-        '<a href="' . $startersurl->out() . '" class="btn btn-sm btn-outline-primary">' .
-            get_string('starters:admin_title', 'local_ai_course_assistant') . ' &rarr;</a>' .
-        '<p class="text-muted mt-1" style="font-size:13px;">' .
-            get_string('starters:admin_desc', 'local_ai_course_assistant') . '</p>'
-    ));
-
-    // Branding.
+    // --- AI Provider & Conversation Settings (most frequently used) ---
     $settings->add(new admin_setting_heading(
-        'local_ai_course_assistant/branding_heading',
-        'Branding',
-        'Customize the assistant name and appearance.'
-    ));
-
-    // Display name.
-    $settings->add(new admin_setting_configtext(
-        'local_ai_course_assistant/display_name',
-        'Display Name',
-        'The full name shown in greetings and the welcome screen (e.g. "SOLA").',
-        'SOLA'
-    ));
-
-    // Short name.
-    $settings->add(new admin_setting_configtext(
-        'local_ai_course_assistant/short_name',
-        'Short Name',
-        'Short name shown in the header bar and compact UI elements.',
-        'SOLA'
-    ));
-
-    // Welcome message (shown on the first-visit welcome screen).
-    $settings->add(new admin_setting_configtextarea(
-        'local_ai_course_assistant/welcome_message',
-        'Welcome Screen Message',
-        'Message shown on the first-visit welcome screen. Use <code>{{firstname}}</code> for the student\'s first name and <code>{{coursename}}</code> for the course name. Leave blank for the default.',
-        ''
-    ));
-
-    // Chat greeting (shown when the chat opens).
-    $settings->add(new admin_setting_configtextarea(
-        'local_ai_course_assistant/chat_greeting',
-        'Chat Greeting',
-        'Greeting message shown when the chat window opens. Use <code>{{firstname}}</code> for the student\'s first name and <code>{{coursename}}</code> for the course name. Leave blank for the default.',
-        ''
+        'local_ai_course_assistant/provider_heading',
+        'AI Provider & Conversation',
+        'Configure the AI backend, model, and conversation behavior.'
     ));
 
     // AI Provider.
@@ -126,23 +83,6 @@ if ($hassiteconfig) {
         ''
     ));
 
-    // System prompt template.
-    $settings->add(new admin_setting_configtextarea(
-        'local_ai_course_assistant/systemprompt',
-        get_string('settings:systemprompt', 'local_ai_course_assistant'),
-        get_string('settings:systemprompt_desc', 'local_ai_course_assistant'),
-        get_string('settings:systemprompt_default', 'local_ai_course_assistant')
-    ));
-
-    // Remote config URL.
-    $settings->add(new admin_setting_configtext(
-        'local_ai_course_assistant/remoteconfigurl',
-        get_string('remoteconfigurl', 'local_ai_course_assistant'),
-        get_string('remoteconfigurl_desc', 'local_ai_course_assistant'),
-        \local_ai_course_assistant\remote_config_manager::DEFAULT_URL,
-        PARAM_URL
-    ));
-
     // Temperature.
     $settings->add(new admin_setting_configtext(
         'local_ai_course_assistant/temperature',
@@ -150,6 +90,14 @@ if ($hassiteconfig) {
         get_string('settings:temperature_desc', 'local_ai_course_assistant'),
         '0.7',
         PARAM_FLOAT
+    ));
+
+    // System prompt template.
+    $settings->add(new admin_setting_configtextarea(
+        'local_ai_course_assistant/systemprompt',
+        get_string('settings:systemprompt', 'local_ai_course_assistant'),
+        get_string('settings:systemprompt_desc', 'local_ai_course_assistant'),
+        get_string('settings:systemprompt_default', 'local_ai_course_assistant')
     ));
 
     // Max conversation history.
@@ -161,64 +109,24 @@ if ($hassiteconfig) {
         PARAM_INT
     ));
 
-    // Display mode.
-    $displaymodes = [
-        'widget' => get_string('settings:display_mode_widget', 'local_ai_course_assistant'),
-        'drawer' => get_string('settings:display_mode_drawer', 'local_ai_course_assistant'),
-    ];
-    $settings->add(new admin_setting_configselect(
-        'local_ai_course_assistant/display_mode',
-        get_string('settings:display_mode', 'local_ai_course_assistant'),
-        get_string('settings:display_mode_desc', 'local_ai_course_assistant'),
-        'drawer',
-        $displaymodes
+    // Remote config URL.
+    $settings->add(new admin_setting_configtext(
+        'local_ai_course_assistant/remoteconfigurl',
+        get_string('remoteconfigurl', 'local_ai_course_assistant'),
+        get_string('remoteconfigurl_desc', 'local_ai_course_assistant'),
+        \local_ai_course_assistant\remote_config_manager::DEFAULT_URL,
+        PARAM_URL
     ));
 
-    // Position.
-    $positions = [
-        'bottom-right' => get_string('settings:position_br', 'local_ai_course_assistant'),
-        'bottom-left' => get_string('settings:position_bl', 'local_ai_course_assistant'),
-        'top-right' => get_string('settings:position_tr', 'local_ai_course_assistant'),
-        'top-left' => get_string('settings:position_tl', 'local_ai_course_assistant'),
-    ];
-    $settings->add(new admin_setting_configselect(
-        'local_ai_course_assistant/position',
-        get_string('settings:position', 'local_ai_course_assistant'),
-        get_string('settings:position_desc', 'local_ai_course_assistant'),
-        'bottom-right',
-        $positions
-    ));
-
-    // Avatar selection.
-    $avatarchoices = [
-        'avatar_01' => get_string('settings:avatar_saylor', 'local_ai_course_assistant'),
-    ];
-    for ($i = 2; $i <= 10; $i++) {
-        $num = str_pad($i, 2, '0', STR_PAD_LEFT);
-        $avatarchoices["avatar_{$num}"] = "Avatar {$i}";
-    }
-    $settings->add(new admin_setting_configselect(
-        'local_ai_course_assistant/avatar',
-        get_string('settings:avatar', 'local_ai_course_assistant'),
-        get_string('settings:avatar_desc', 'local_ai_course_assistant'),
-        'avatar_01',
-        $avatarchoices
-    ));
-
-    // Avatar border color.
-    $settings->add(new admin_setting_configcolourpicker(
-        'local_ai_course_assistant/avatar_color',
-        get_string('settings:avatar_color', 'local_ai_course_assistant'),
-        get_string('settings:avatar_color_desc', 'local_ai_course_assistant'),
-        '#4a6cf7'
-    ));
-
-    // Avatar fill/background color.
-    $settings->add(new admin_setting_configcolourpicker(
-        'local_ai_course_assistant/avatar_fill',
-        get_string('settings:avatar_fill', 'local_ai_course_assistant'),
-        get_string('settings:avatar_fill_desc', 'local_ai_course_assistant'),
-        '#ffffff'
+    // --- Conversation Starters ---
+    $startersurl = new moodle_url('/local/ai_course_assistant/starter_settings.php');
+    $settings->add(new admin_setting_description(
+        'local_ai_course_assistant/starters_link',
+        get_string('starters:admin_title', 'local_ai_course_assistant'),
+        '<a href="' . $startersurl->out() . '" class="btn btn-sm btn-outline-primary">' .
+            get_string('starters:admin_title', 'local_ai_course_assistant') . ' &rarr;</a>' .
+        '<p class="text-muted mt-1" style="font-size:13px;">' .
+            get_string('starters:admin_desc', 'local_ai_course_assistant') . '</p>'
     ));
 
     // --- RAG / Semantic Search Settings ---
@@ -310,51 +218,14 @@ if ($hassiteconfig) {
             ['class' => 'btn btn-secondary btn-sm'])
     ));
 
-    // --- FAQ & Support Settings ---
-    $settings->add(new admin_setting_heading(
-        'local_ai_course_assistant/faq_heading',
-        get_string('settings:faq_heading', 'local_ai_course_assistant'),
-        get_string('settings:faq_heading_desc', 'local_ai_course_assistant')
-    ));
-
-    // FAQ content.
-    $settings->add(new admin_setting_configtextarea(
-        'local_ai_course_assistant/faq_content',
-        get_string('settings:faq_content', 'local_ai_course_assistant'),
-        get_string('settings:faq_content_desc', 'local_ai_course_assistant'),
-        ''
-    ));
-
-    // Zendesk integration enable.
-    $settings->add(new admin_setting_configcheckbox(
-        'local_ai_course_assistant/zendesk_enabled',
-        get_string('settings:zendesk_enabled', 'local_ai_course_assistant'),
-        get_string('settings:zendesk_enabled_desc', 'local_ai_course_assistant'),
-        0
-    ));
-
-    // Zendesk subdomain.
-    $settings->add(new admin_setting_configtext(
-        'local_ai_course_assistant/zendesk_subdomain',
-        get_string('settings:zendesk_subdomain', 'local_ai_course_assistant'),
-        get_string('settings:zendesk_subdomain_desc', 'local_ai_course_assistant'),
-        ''
-    ));
-
-    // Zendesk API email.
-    $settings->add(new admin_setting_configtext(
-        'local_ai_course_assistant/zendesk_email',
-        get_string('settings:zendesk_email', 'local_ai_course_assistant'),
-        get_string('settings:zendesk_email_desc', 'local_ai_course_assistant'),
-        ''
-    ));
-
-    // Zendesk API token.
-    $settings->add(new admin_setting_configpasswordunmask(
-        'local_ai_course_assistant/zendesk_token',
-        get_string('settings:zendesk_token', 'local_ai_course_assistant'),
-        get_string('settings:zendesk_token_desc', 'local_ai_course_assistant'),
-        ''
+    // --- Token Cost & Analytics ---
+    $tokenanalyticsurl = new moodle_url('/local/ai_course_assistant/token_analytics.php');
+    $settings->add(new admin_setting_description(
+        'local_ai_course_assistant/token_analytics_link',
+        'Token Cost & Analytics',
+        '<a href="' . $tokenanalyticsurl->out() . '" class="btn btn-sm btn-outline-secondary">' .
+            'View Token Analytics &rarr;</a>' .
+        '<p class="text-muted mt-1" style="font-size:13px;">Monitor token usage and costs across courses and providers.</p>'
     ));
 
     // --- Off-topic Detection Settings ---
@@ -401,6 +272,20 @@ if ($hassiteconfig) {
         get_string('settings:offtopic_lockout_duration_desc', 'local_ai_course_assistant'),
         '30',
         PARAM_INT
+    ));
+
+    // --- Wellbeing & Safety Settings ---
+    $settings->add(new admin_setting_heading(
+        'local_ai_course_assistant/wellbeing_heading',
+        get_string('settings:wellbeing_heading', 'local_ai_course_assistant'),
+        get_string('settings:wellbeing_heading_desc', 'local_ai_course_assistant')
+    ));
+
+    $settings->add(new admin_setting_configcheckbox(
+        'local_ai_course_assistant/wellbeing_enabled',
+        get_string('settings:wellbeing_enabled', 'local_ai_course_assistant'),
+        get_string('settings:wellbeing_enabled_desc', 'local_ai_course_assistant'),
+        1
     ));
 
     // --- Study Planning & Reminders Settings ---
@@ -482,18 +367,150 @@ if ($hassiteconfig) {
         PARAM_INT
     ));
 
-    // --- Wellbeing & Safety Settings ---
+    // --- Branding ---
     $settings->add(new admin_setting_heading(
-        'local_ai_course_assistant/wellbeing_heading',
-        get_string('settings:wellbeing_heading', 'local_ai_course_assistant'),
-        get_string('settings:wellbeing_heading_desc', 'local_ai_course_assistant')
+        'local_ai_course_assistant/branding_heading',
+        'Branding',
+        'Customize the assistant name and appearance.'
     ));
 
+    // Display name.
+    $settings->add(new admin_setting_configtext(
+        'local_ai_course_assistant/display_name',
+        'Display Name',
+        'The full name shown in greetings and the welcome screen (e.g. "SOLA").',
+        'SOLA'
+    ));
+
+    // Short name.
+    $settings->add(new admin_setting_configtext(
+        'local_ai_course_assistant/short_name',
+        'Short Name',
+        'Short name shown in the header bar and compact UI elements.',
+        'SOLA'
+    ));
+
+    // Welcome message (shown on the first-visit welcome screen).
+    $settings->add(new admin_setting_configtextarea(
+        'local_ai_course_assistant/welcome_message',
+        'Welcome Screen Message',
+        'Message shown on the first-visit welcome screen. Use <code>{{firstname}}</code> for the student\'s first name and <code>{{coursename}}</code> for the course name. Leave blank for the default.',
+        ''
+    ));
+
+    // Chat greeting (shown when the chat opens).
+    $settings->add(new admin_setting_configtextarea(
+        'local_ai_course_assistant/chat_greeting',
+        'Chat Greeting',
+        'Greeting message shown when the chat window opens. Use <code>{{firstname}}</code> for the student\'s first name and <code>{{coursename}}</code> for the course name. Leave blank for the default.',
+        ''
+    ));
+
+    // Display mode.
+    $displaymodes = [
+        'widget' => get_string('settings:display_mode_widget', 'local_ai_course_assistant'),
+        'drawer' => get_string('settings:display_mode_drawer', 'local_ai_course_assistant'),
+    ];
+    $settings->add(new admin_setting_configselect(
+        'local_ai_course_assistant/display_mode',
+        get_string('settings:display_mode', 'local_ai_course_assistant'),
+        get_string('settings:display_mode_desc', 'local_ai_course_assistant'),
+        'drawer',
+        $displaymodes
+    ));
+
+    // Position.
+    $positions = [
+        'bottom-right' => get_string('settings:position_br', 'local_ai_course_assistant'),
+        'bottom-left' => get_string('settings:position_bl', 'local_ai_course_assistant'),
+        'top-right' => get_string('settings:position_tr', 'local_ai_course_assistant'),
+        'top-left' => get_string('settings:position_tl', 'local_ai_course_assistant'),
+    ];
+    $settings->add(new admin_setting_configselect(
+        'local_ai_course_assistant/position',
+        get_string('settings:position', 'local_ai_course_assistant'),
+        get_string('settings:position_desc', 'local_ai_course_assistant'),
+        'bottom-right',
+        $positions
+    ));
+
+    // Avatar selection.
+    $avatarchoices = [
+        'avatar_01' => get_string('settings:avatar_saylor', 'local_ai_course_assistant'),
+    ];
+    for ($i = 2; $i <= 10; $i++) {
+        $num = str_pad($i, 2, '0', STR_PAD_LEFT);
+        $avatarchoices["avatar_{$num}"] = "Avatar {$i}";
+    }
+    $settings->add(new admin_setting_configselect(
+        'local_ai_course_assistant/avatar',
+        get_string('settings:avatar', 'local_ai_course_assistant'),
+        get_string('settings:avatar_desc', 'local_ai_course_assistant'),
+        'avatar_01',
+        $avatarchoices
+    ));
+
+    // Avatar border color.
+    $settings->add(new admin_setting_configcolourpicker(
+        'local_ai_course_assistant/avatar_color',
+        get_string('settings:avatar_color', 'local_ai_course_assistant'),
+        get_string('settings:avatar_color_desc', 'local_ai_course_assistant'),
+        '#4a6cf7'
+    ));
+
+    // Avatar fill/background color.
+    $settings->add(new admin_setting_configcolourpicker(
+        'local_ai_course_assistant/avatar_fill',
+        get_string('settings:avatar_fill', 'local_ai_course_assistant'),
+        get_string('settings:avatar_fill_desc', 'local_ai_course_assistant'),
+        '#ffffff'
+    ));
+
+    // --- FAQ & Support Settings ---
+    $settings->add(new admin_setting_heading(
+        'local_ai_course_assistant/faq_heading',
+        get_string('settings:faq_heading', 'local_ai_course_assistant'),
+        get_string('settings:faq_heading_desc', 'local_ai_course_assistant')
+    ));
+
+    // FAQ content.
+    $settings->add(new admin_setting_configtextarea(
+        'local_ai_course_assistant/faq_content',
+        get_string('settings:faq_content', 'local_ai_course_assistant'),
+        get_string('settings:faq_content_desc', 'local_ai_course_assistant'),
+        ''
+    ));
+
+    // Zendesk integration enable.
     $settings->add(new admin_setting_configcheckbox(
-        'local_ai_course_assistant/wellbeing_enabled',
-        get_string('settings:wellbeing_enabled', 'local_ai_course_assistant'),
-        get_string('settings:wellbeing_enabled_desc', 'local_ai_course_assistant'),
-        1
+        'local_ai_course_assistant/zendesk_enabled',
+        get_string('settings:zendesk_enabled', 'local_ai_course_assistant'),
+        get_string('settings:zendesk_enabled_desc', 'local_ai_course_assistant'),
+        0
+    ));
+
+    // Zendesk subdomain.
+    $settings->add(new admin_setting_configtext(
+        'local_ai_course_assistant/zendesk_subdomain',
+        get_string('settings:zendesk_subdomain', 'local_ai_course_assistant'),
+        get_string('settings:zendesk_subdomain_desc', 'local_ai_course_assistant'),
+        ''
+    ));
+
+    // Zendesk API email.
+    $settings->add(new admin_setting_configtext(
+        'local_ai_course_assistant/zendesk_email',
+        get_string('settings:zendesk_email', 'local_ai_course_assistant'),
+        get_string('settings:zendesk_email_desc', 'local_ai_course_assistant'),
+        ''
+    ));
+
+    // Zendesk API token.
+    $settings->add(new admin_setting_configpasswordunmask(
+        'local_ai_course_assistant/zendesk_token',
+        get_string('settings:zendesk_token', 'local_ai_course_assistant'),
+        get_string('settings:zendesk_token_desc', 'local_ai_course_assistant'),
+        ''
     ));
 
     // --- Voice Mode (OpenAI Realtime) Settings ---
