@@ -198,15 +198,18 @@ define([
         }
         const labels = Speech.getStarterLabels(langCode);
         const keyMap = {
+            'help-page':    labels ? labels.helpPage     : null,
             'quiz':         labels ? labels.quiz         : null,
-            'explain':      labels ? labels.helpLesson   : null, // reuse helpLesson translations
-            'key-concepts': labels ? labels.keyConcepts  : null,
             'study-plan':   labels ? labels.studyPlan    : null,
+            'ask-anything': labels ? labels.askAnything   : null,
+            'review-practice': labels ? labels.reviewPractice : null,
             'ell-practice':       labels ? labels.ellPractice       : null,
             'ell-pronunciation':  labels ? labels.ellPronunciation  : null,
-            'ai-coach':           labels ? labels.aiCoach           : null,
             // Legacy starter keys.
-            'help-lesson':  labels ? labels.helpLesson   : null,
+            'explain':      labels ? labels.helpPage     : null,
+            'key-concepts': labels ? labels.helpPage     : null,
+            'ai-coach':     labels ? labels.askAnything   : null,
+            'help-lesson':  labels ? labels.helpPage     : null,
             'help-me':      labels ? labels.helpMe       : null,
         };
         rootEl.querySelectorAll('.local-ai-course-assistant__starter').forEach(function(btn) {
@@ -346,7 +349,7 @@ define([
     /**
      * Build a prompt string for a conversation starter + chosen topic.
      *
-     * @param {string} starterKey 'help-lesson' | 'explain' | 'study-plan'
+     * @param {string} starterKey Starter key (e.g. 'help-page', 'study-plan', 'ask-anything')
      * @param {string} topic      Resolved topic ('' = default, '__guided__' = AI-guided)
      * @returns {string}
      */
@@ -354,33 +357,23 @@ define([
         const isGuided = topic === '__guided__';
         const isEmpty  = !topic || topic === '';
 
-        if (starterKey === 'help-lesson') {
-            if (isGuided) {
-                return 'Based on my course progress and previous questions, which concept should I ' +
-                    'be focusing on most right now? Please identify it, then help me understand it.';
-            }
-            if (isEmpty) {
-                const pageRef = currentPageTitle ? '"' + currentPageTitle + '"' : 'the current lesson';
-                return 'Can you help me understand the key concepts from ' + pageRef + '? Give me a clear summary.';
-            }
-            return 'Can you help me understand "' + topic + '"? Give me a summary of the key ' +
-                'concepts and any important details.';
-        }
-
-        if (starterKey === 'explain') {
+        // Help With This Page — combines old 'explain' + 'key-concepts'.
+        if (starterKey === 'help-page' || starterKey === 'explain' || starterKey === 'help-lesson') {
             if (isGuided) {
                 return 'Based on my progress and what I\'ve been asking about, which concept from ' +
                     'this course should I understand more deeply right now? Please identify it and ' +
                     'explain it clearly with examples.';
             }
             if (isEmpty) {
-                const pageRef = currentPageTitle ? '"' + currentPageTitle + '"' : 'this course so far';
-                return 'Can you explain the most important concept from ' + pageRef + '? Use examples and clear language.';
+                const pageRef = currentPageTitle ? '"' + currentPageTitle + '"' : 'this lesson';
+                return 'Help me understand ' + pageRef + '. What are the key concepts, and can you ' +
+                    'explain them with examples?';
             }
             return 'Can you explain "' + topic + '" in detail? Use examples and analogies to ' +
                 'make it easy to understand.';
         }
 
+        // Key Concepts (legacy, still works if called).
         if (starterKey === 'key-concepts') {
             if (isEmpty) {
                 const pageRef = currentPageTitle ? '"' + currentPageTitle + '"' : 'this course so far';
@@ -404,10 +397,19 @@ define([
                 'how much time I have available, then create a focused study plan.';
         }
 
-        if (starterKey === 'ai-coach') {
-            const pageRef = currentPageTitle ? ' and how AI could apply to "' + currentPageTitle + '"' : '';
-            return 'I\'d like to explore AI' + pageRef + '. Can you help me understand how AI works, ' +
-                'ask questions about AI concepts, or figure out how to use AI tools in my learning and projects?';
+        // Ask Anything — replaces old 'ai-coach', open-ended.
+        if (starterKey === 'ask-anything' || starterKey === 'ai-coach') {
+            const pageRef = currentPageTitle ? ' about "' + currentPageTitle + '"' : '';
+            return 'I have a question' + pageRef + '. Can you help me? I\'d like to explore this topic, ' +
+                'ask follow-up questions, and understand it better.';
+        }
+
+        // Review & Practice — replaces old 'quick-study'.
+        if (starterKey === 'review-practice') {
+            const pageRef = currentPageTitle ? ' from "' + currentPageTitle + '"' : ' from recent lessons';
+            return 'I\'d like to review and practice what I\'ve been learning' + pageRef + '. ' +
+                'Can you help me identify what I should review, then quiz me or walk me through ' +
+                'the key points?';
         }
 
         return '';
@@ -429,6 +431,7 @@ define([
             return;
         }
 
+        // Legacy quick-study still works (redirects to review-practice).
         if (starterKey === 'quick-study') {
             handleQuickStudy();
             return;
@@ -446,9 +449,11 @@ define([
             return;
         }
 
-        // "Help Me" fires directly without a topic picker.
-        if (starterKey === 'help-me') {
-            const prompt = 'I need some help!';
+        // Direct-fire starters (no topic picker needed).
+        const directStarters = ['help-page', 'ask-anything', 'review-practice',
+            'help-me', 'key-concepts', 'ai-coach'];
+        if (directStarters.indexOf(starterKey) !== -1) {
+            const prompt = buildStarterPrompt(starterKey, '');
             UI.getElements().input.value = prompt;
             UI.autoResizeInput();
             UI.updateSendButton();
@@ -456,31 +461,11 @@ define([
             return;
         }
 
-        // "Key Concepts" fires directly — no topic picker needed.
-        if (starterKey === 'key-concepts') {
-            const prompt = buildStarterPrompt('key-concepts', '');
-            UI.getElements().input.value = prompt;
-            UI.autoResizeInput();
-            UI.updateSendButton();
-            handleSend();
-            return;
-        }
-
-        // "AI Coach" fires directly — invites the student to explore AI.
-        if (starterKey === 'ai-coach') {
-            const prompt = buildStarterPrompt('ai-coach', '');
-            UI.getElements().input.value = prompt;
-            UI.autoResizeInput();
-            UI.updateSendButton();
-            handleSend();
-            return;
-        }
-
+        // Topic-picker starters (explain, study-plan, help-lesson).
         const titleKeyMap = {
             'help-lesson':  'chat:topic_picker_title_help',
             'explain':      'chat:topic_picker_title_explain',
             'study-plan':   'chat:topic_picker_title_study',
-            'key-concepts': 'chat:topic_picker_title_explain',
         };
         const titleKey = titleKeyMap[starterKey] || 'chat:topic_picker_title';
 
@@ -965,22 +950,25 @@ define([
     const matchStarterByVoice = function(transcript) {
         const lower = transcript.toLowerCase().trim();
         const enKeywords = {
+            'help-page':    ['help with this page', 'help me with this', 'explain this', 'explain',
+                             'key concepts', 'concepts', 'this page'],
             'quiz':         ['quiz', 'test', 'quiz me', 'test me'],
-            'explain':      ['explain', 'explain this', 'explain it'],
-            'key-concepts': ['key concepts', 'key concept', 'concepts', 'main concepts'],
             'study-plan':   ['study plan', 'study', 'plan', 'schedule'],
-            'ell-practice':      ['practice speaking', 'speaking practice', 'practice'],
+            'ask-anything': ['ask anything', 'ask a question', 'question', 'ai coach',
+                             'learn about ai', 'ai tools'],
+            'review-practice': ['review', 'practice', 'review and practice', 'quick study'],
+            'ell-practice':      ['practice speaking', 'speaking practice'],
             'ell-pronunciation': ['pronunciation', 'pronunciation coach', 'ell pronunciation'],
-            'ai-coach':          ['ai coach', 'learn about ai', 'artificial intelligence', 'ai tools'],
         };
         // Check translated labels for the current language first.
         const labels = Speech.getStarterLabels(Speech.getLang ? Speech.getLang() : null);
         const labelMap = {
-            quiz:        'quiz',
-            helpLesson:  'explain',
-            keyConcepts: 'key-concepts',
-            studyPlan:   'study-plan',
-            ellPractice: 'ell-practice',
+            helpPage:     'help-page',
+            quiz:         'quiz',
+            studyPlan:    'study-plan',
+            askAnything:  'ask-anything',
+            reviewPractice: 'review-practice',
+            ellPractice:  'ell-practice',
         };
         if (labels) {
             for (const key in labelMap) {

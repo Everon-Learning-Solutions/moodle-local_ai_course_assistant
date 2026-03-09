@@ -414,17 +414,20 @@ $string['chat:quiz_correct_answer']     = 'Correct answer';
 
 // Conversation starters.
 $string['chat:starters_label']              = 'Conversation starters';
+$string['chat:starter_help_page']           = 'Help With This Page';
 $string['chat:starter_quiz']                = 'Quiz Me';
-$string['chat:starter_explain']             = 'Explain This';
-$string['chat:starter_key_concepts']        = 'Key Concepts';
 $string['chat:starter_study_plan']          = 'Study Plan';
-$string['chat:starter_help_me']             = 'AI Help';
+$string['chat:starter_ask_anything']        = 'Ask Anything';
+$string['chat:starter_review_practice']     = 'Review & Practice';
 $string['chat:starter_ell_practice']        = 'Practice Speaking';
 $string['chat:starter_ell_pronunciation']   = 'Pronunciation Practice';
-$string['chat:starter_ai_coach']            = 'AI Coach';
-$string['chat:starter_quick_study']         = 'Quick Study';
 $string['chat:starter_speak']               = 'Speak a starter';
 // Legacy keys kept for backwards compatibility.
+$string['chat:starter_explain']             = 'Explain This';
+$string['chat:starter_key_concepts']        = 'Key Concepts';
+$string['chat:starter_help_me']             = 'AI Help';
+$string['chat:starter_ai_coach']            = 'AI Coach';
+$string['chat:starter_quick_study']         = 'Quick Study';
 $string['chat:starter_help_lesson']         = 'Explain This';
 $string['chat:starter_prompt_coach']        = 'AI Prompt Coach';
 $string['chat:starter_help_lesson_prompt']  = 'Can you help me understand the current lesson? Give me a summary of the key concepts.';
