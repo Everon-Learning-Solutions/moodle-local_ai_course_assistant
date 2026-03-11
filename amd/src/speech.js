@@ -43,6 +43,7 @@ define([], function() {
         'fi': {name: 'Finnish',     locale: 'fi-FI'},
         'fr': {name: 'French',      locale: 'fr-FR'},
         'de': {name: 'German',      locale: 'de-DE'},
+        'bg': {name: 'Bulgarian',   locale: 'bg-BG'},
         'el': {name: 'Greek',       locale: 'el-GR'},
         'hi': {name: 'Hindi',       locale: 'hi-IN'},
         'hu': {name: 'Hungarian',   locale: 'hu-HU'},
@@ -440,6 +441,7 @@ define([], function() {
     /** @type {Object} Starter label translations keyed by ISO 639-1 code */
     const STARTER_LABELS = {
         'ar': {helpPage: 'مساعدة في هذه الصفحة', quiz: 'اختبر معلوماتي', studyPlan: 'خطة الدراسة', askAnything: 'اسأل أي شيء', reviewPractice: 'مراجعة وتمرين', ellPractice: 'تدريب على الكلام', ellPronunciation: 'تحسين النطق', helpLesson: 'اشرح هذا', helpMe: 'مساعدة AI', keyConcepts: 'المفاهيم الرئيسية', aiCoach: 'مدرب الذكاء الاصطناعي'},
+        'bg': {helpPage: 'Помощ за страницата', quiz: 'Тест', studyPlan: 'План за учене', askAnything: 'Задай въпрос', reviewPractice: 'Преговор и практика', ellPractice: 'Практика на говорене', ellPronunciation: 'Практика на произношение', helpLesson: 'Обясни това', helpMe: 'AI помощ', keyConcepts: 'Ключови понятия', aiCoach: 'AI Треньор'},
         'zh': {helpPage: '帮助理解本页', quiz: '测验我', studyPlan: '学习计划', askAnything: '问任何问题', reviewPractice: '复习与练习', ellPractice: '口语练习', ellPronunciation: '发音练习', helpLesson: '解释这个', helpMe: 'AI 帮助', keyConcepts: '关键概念', aiCoach: 'AI辅导'},
         'cs': {helpPage: 'Pomoc s touto stránkou', quiz: 'Otestuj mě', studyPlan: 'Studijní plán', askAnything: 'Zeptejte se na cokoliv', reviewPractice: 'Opakování a procvičování', ellPractice: 'Cvičení mluvení', ellPronunciation: 'Výslovnost', helpLesson: 'Vysvětlit', helpMe: 'Pomoc AI', keyConcepts: 'Klíčové pojmy', aiCoach: 'AI koučink'},
         'da': {helpPage: 'Hjælp med denne side', quiz: 'Test mig', studyPlan: 'Studieplan', askAnything: 'Spørg om hvad som helst', reviewPractice: 'Gennemgå og øv', ellPractice: 'Øv at tale', ellPronunciation: 'Udtaleøvelse', helpLesson: 'Forklar dette', helpMe: 'AI-hjælp', keyConcepts: 'Nøglebegreber', aiCoach: 'AI-coach'},
@@ -672,6 +674,139 @@ define([], function() {
             studyPlan: 'Ngisize ngakhe uhlelo lwezifundo',
             askAnything: 'Nginombuzo',
             reviewPractice: 'Buyekeza futhi uzipratize imiqondo esemqoka'
+        },
+        'bg': {
+            helpPage: 'Помогни ми да разбера тази страница',
+            quiz: 'Дай ми тест за упражнение',
+            studyPlan: 'Помогни ми да направя план за учене',
+            askAnything: 'Имам въпрос',
+            reviewPractice: 'Преговор и упражнение на основните понятия'
+        },
+        'cs': {
+            helpPage: 'Pomoz mi pochopit tuto stránku',
+            quiz: 'Dej mi cvičný kvíz',
+            studyPlan: 'Pomoz mi vytvořit studijní plán',
+            askAnything: 'Mám otázku',
+            reviewPractice: 'Zopakovat a procvičit klíčové pojmy'
+        },
+        'da': {
+            helpPage: 'Hjælp mig med at forstå denne side',
+            quiz: 'Giv mig en øvelsesquiz',
+            studyPlan: 'Hjælp mig med at lave en studieplan',
+            askAnything: 'Jeg har et spørgsmål',
+            reviewPractice: 'Gennemgå og øv nøglebegreber'
+        },
+        'nl': {
+            helpPage: 'Help me deze pagina te begrijpen',
+            quiz: 'Geef me een oefenquiz',
+            studyPlan: 'Help me een studieplan te maken',
+            askAnything: 'Ik heb een vraag',
+            reviewPractice: 'Kernbegrippen herhalen en oefenen'
+        },
+        'fi': {
+            helpPage: 'Auta minua ymmärtämään tämä sivu',
+            quiz: 'Anna minulle harjoituskoe',
+            studyPlan: 'Auta minua tekemään opiskelusuunnitelma',
+            askAnything: 'Minulla on kysymys',
+            reviewPractice: 'Kertaa ja harjoittele avainkäsitteitä'
+        },
+        'de': {
+            helpPage: 'Hilf mir, diese Seite zu verstehen',
+            quiz: 'Gib mir ein Übungsquiz',
+            studyPlan: 'Hilf mir, einen Lernplan zu erstellen',
+            askAnything: 'Ich habe eine Frage',
+            reviewPractice: 'Schlüsselbegriffe wiederholen und üben'
+        },
+        'el': {
+            helpPage: 'Βοήθησέ με να καταλάβω αυτή τη σελίδα',
+            quiz: 'Δώσε μου ένα κουίζ εξάσκησης',
+            studyPlan: 'Βοήθησέ με να φτιάξω πρόγραμμα μελέτης',
+            askAnything: 'Έχω μια ερώτηση',
+            reviewPractice: 'Επανάληψη και εξάσκηση βασικών εννοιών'
+        },
+        'hu': {
+            helpPage: 'Segíts megérteni ezt az oldalt',
+            quiz: 'Adj egy gyakorló kvízt',
+            studyPlan: 'Segíts tanulási tervet készíteni',
+            askAnything: 'Van egy kérdésem',
+            reviewPractice: 'Kulcsfogalmak áttekintése és gyakorlása'
+        },
+        'it': {
+            helpPage: 'Aiutami a capire questa pagina',
+            quiz: 'Fammi un quiz di pratica',
+            studyPlan: 'Aiutami a creare un piano di studio',
+            askAnything: 'Ho una domanda',
+            reviewPractice: 'Ripassare e praticare i concetti chiave'
+        },
+        'ja': {
+            helpPage: 'このページの内容を教えて',
+            quiz: '練習クイズを出して',
+            studyPlan: '学習計画を立てるのを手伝って',
+            askAnything: '質問があります',
+            reviewPractice: '重要な概念を復習して練習する'
+        },
+        'ko': {
+            helpPage: '이 페이지를 이해하도록 도와줘',
+            quiz: '연습 퀴즈를 내줘',
+            studyPlan: '학습 계획을 세우는 걸 도와줘',
+            askAnything: '질문이 있어요',
+            reviewPractice: '핵심 개념 복습하고 연습하기'
+        },
+        'nb': {
+            helpPage: 'Hjelp meg å forstå denne siden',
+            quiz: 'Gi meg en øvingsquiz',
+            studyPlan: 'Hjelp meg å lage en studieplan',
+            askAnything: 'Jeg har et spørsmål',
+            reviewPractice: 'Gjennomgå og øv på nøkkelbegreper'
+        },
+        'pl': {
+            helpPage: 'Pomóż mi zrozumieć tę stronę',
+            quiz: 'Daj mi quiz do ćwiczeń',
+            studyPlan: 'Pomóż mi stworzyć plan nauki',
+            askAnything: 'Mam pytanie',
+            reviewPractice: 'Powtórz i przećwicz kluczowe pojęcia'
+        },
+        'ro': {
+            helpPage: 'Ajută-mă să înțeleg această pagină',
+            quiz: 'Dă-mi un test de practică',
+            studyPlan: 'Ajută-mă să fac un plan de studiu',
+            askAnything: 'Am o întrebare',
+            reviewPractice: 'Recapitulare și exersare a conceptelor cheie'
+        },
+        'sk': {
+            helpPage: 'Pomôž mi pochopiť túto stránku',
+            quiz: 'Daj mi cvičný kvíz',
+            studyPlan: 'Pomôž mi vytvoriť študijný plán',
+            askAnything: 'Mám otázku',
+            reviewPractice: 'Zopakovať a precvičiť kľúčové pojmy'
+        },
+        'sv': {
+            helpPage: 'Hjälp mig förstå den här sidan',
+            quiz: 'Ge mig ett övningsquiz',
+            studyPlan: 'Hjälp mig skapa en studieplan',
+            askAnything: 'Jag har en fråga',
+            reviewPractice: 'Repetera och öva på nyckelbegrepp'
+        },
+        'th': {
+            helpPage: 'ช่วยให้ฉันเข้าใจหน้านี้',
+            quiz: 'ให้แบบทดสอบฝึกหัดฉันหน่อย',
+            studyPlan: 'ช่วยฉันวางแผนการเรียน',
+            askAnything: 'ฉันมีคำถาม',
+            reviewPractice: 'ทบทวนและฝึกฝนแนวคิดสำคัญ'
+        },
+        'tr': {
+            helpPage: 'Bu sayfayı anlamama yardım et',
+            quiz: 'Bana bir alıştırma testi ver',
+            studyPlan: 'Çalışma planı yapmama yardım et',
+            askAnything: 'Bir sorum var',
+            reviewPractice: 'Temel kavramları tekrarla ve pratik yap'
+        },
+        'uk': {
+            helpPage: 'Допоможи мені зрозуміти цю сторінку',
+            quiz: 'Дай мені тренувальний тест',
+            studyPlan: 'Допоможи мені скласти план навчання',
+            askAnything: 'У мене є питання',
+            reviewPractice: 'Повторити та попрактикувати ключові поняття'
         },
     };
 

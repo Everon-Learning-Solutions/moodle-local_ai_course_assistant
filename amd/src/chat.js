@@ -460,9 +460,34 @@ define([
             return;
         }
 
-        // Prompt-type starters: use the configured prompt or fall back to buildStarterPrompt.
+        // Map kebab-case data-starter keys to camelCase STARTER_PROMPTS keys.
+        const camelKeyMap = {
+            'help-page': 'helpPage',
+            'quiz': 'quiz',
+            'study-plan': 'studyPlan',
+            'ask-anything': 'askAnything',
+            'review-practice': 'reviewPractice',
+            'help-lesson': 'helpPage',
+            'explain': 'helpPage',
+            'key-concepts': 'reviewPractice',
+        };
+
+        // Try translated prompt first when UI is set to a non-English language.
+        const currentLang = Speech.getLang ? Speech.getLang() : '';
+        const promptKey = camelKeyMap[starterKey];
+        if (currentLang && currentLang !== 'en' && promptKey) {
+            const translatedPrompt = Speech.getStarterPrompt(currentLang, promptKey);
+            if (translatedPrompt) {
+                UI.getElements().input.value = translatedPrompt;
+                UI.autoResizeInput();
+                UI.updateSendButton();
+                handleSend();
+                return;
+            }
+        }
+
+        // Use admin-configured prompt if set.
         if (starterPrompt) {
-            // Replace {page} placeholder with current page title.
             const pageRef = currentPageTitle ? '"' + currentPageTitle + '"' : 'this lesson';
             const finalPrompt = starterPrompt.replace(/\{page\}/g, pageRef);
             UI.getElements().input.value = finalPrompt;
@@ -472,27 +497,9 @@ define([
             return;
         }
 
-        // Fallback: use buildStarterPrompt for known keys (translate if non-English).
+        // Fallback: use buildStarterPrompt for known keys.
         var prompt = buildStarterPrompt(starterKey, '');
         if (prompt) {
-            const currentLang = Speech.getLang ? Speech.getLang() : '';
-            if (currentLang && currentLang !== 'en') {
-                // Map kebab-case data-starter keys to camelCase STARTER_PROMPTS keys.
-                const camelKeyMap = {
-                    'help-page': 'helpPage',
-                    'quiz': 'quiz',
-                    'study-plan': 'studyPlan',
-                    'ask-anything': 'askAnything',
-                    'review-practice': 'reviewPractice',
-                };
-                const promptKey = camelKeyMap[starterKey];
-                if (promptKey) {
-                    const translatedPrompt = Speech.getStarterPrompt(currentLang, promptKey);
-                    if (translatedPrompt) {
-                        prompt = translatedPrompt;
-                    }
-                }
-            }
             UI.getElements().input.value = prompt;
             UI.autoResizeInput();
             UI.updateSendButton();
