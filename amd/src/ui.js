@@ -2517,7 +2517,7 @@ define([
         langDesc.className = 'aica-settings-panel__empty-note';
         langDesc.style.marginTop = '0';
         langDesc.style.marginBottom = '8px';
-        langDesc.textContent = 'Choose the language SOLA speaks and responds in. This does not change your Moodle interface.';
+        langDesc.textContent = 'Choose the language SOLA speaks and responds in.';
         langSection.appendChild(langDesc);
 
         const langSelect = document.createElement('select');
