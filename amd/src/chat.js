@@ -48,6 +48,8 @@ define([
     let sseUrl = '';
     /** @type {boolean} Whether history has been loaded */
     let historyLoaded = false;
+    /** @type {number} Timestamp when the drawer was first opened this page load (for session timing). */
+    let sessionStartTime = Date.now();
     /** @type {boolean} Whether a message is currently being sent/streamed */
     let sending = false;
     /** @type {AbortController|null} Current stream controller */
@@ -1445,6 +1447,14 @@ define([
             footerFeedbackBtn.addEventListener('click', feedbackHandler);
         }
 
+        // User Testing button (footer).
+        const utBtn = els.root ? els.root.querySelector('.local-ai-course-assistant__footer-usertesting-link') : null;
+        if (utBtn) {
+            utBtn.addEventListener('click', function() {
+                handleUserTesting();
+            });
+        }
+
         // Reset/home button.
         const resetBtn = els.root ? els.root.querySelector('.local-ai-course-assistant__btn-reset') : null;
         if (resetBtn) {
@@ -1784,6 +1794,80 @@ define([
             }
             return;
         }).catch(function() { /**/ });
+    };
+
+    /**
+     * Helper: count user messages in the conversation.
+     */
+    const getUserMessageCount = function() {
+        try {
+            var msgs = document.querySelectorAll('.local-ai-course-assistant__message--user');
+            return msgs ? msgs.length : 0;
+        } catch (e) { return 0; }
+    };
+
+    /**
+     * Helper: get session duration in minutes.
+     */
+    const getSessionMinutes = function() {
+        return Math.round((Date.now() - sessionStartTime) / 60000);
+    };
+
+    /**
+     * Handle User Testing button click.
+     *
+     * If an external URL is configured, opens it with context params (Option C).
+     * Otherwise, fetches the task set and shows the in-widget panel (Option B).
+     */
+    const handleUserTesting = function() {
+        var root = UI.getElements().root;
+        if (!root) { return; }
+
+        // Check for external URL (Option C).
+        var footerDiv = root.querySelector('.local-ai-course-assistant__footer-feedback');
+        var externalUrl = footerDiv ? (footerDiv.dataset.usertestingExternalUrl || '') : '';
+        if (externalUrl) {
+            var msgCount = getUserMessageCount();
+            var sessionMins = getSessionMinutes();
+            var userId = root.dataset.userid || '0';
+            var url = externalUrl
+                .replace('{{userid}}', encodeURIComponent(userId))
+                .replace('{{courseid}}', encodeURIComponent(courseId))
+                .replace('{{messages}}', encodeURIComponent(msgCount))
+                .replace('{{session_minutes}}', encodeURIComponent(sessionMins));
+            window.open(url, '_blank');
+            return;
+        }
+
+        // Option B: in-widget testing panel.
+        Repo.getUserTesting(courseId).then(function(data) {
+            if (!data.has_taskset) {
+                UI.showNotification('No testing tasks are available right now.', 'info');
+                return;
+            }
+            if (data.completed_count >= data.total_tasks) {
+                UI.showNotification('You have completed all testing tasks. Thank you!', 'info');
+                return;
+            }
+
+            var tasks = [];
+            try { tasks = JSON.parse(data.tasks); } catch (e) { return; }
+
+            UI.showUserTestingPanel(
+                {id: data.taskset_id, title: data.title, tasks: tasks, completed_count: data.completed_count},
+                function(tasksetId, taskIndex, rating, answer) {
+                    var msgCount = getUserMessageCount();
+                    var sessionMins = getSessionMinutes();
+                    Repo.submitUserTestingResponse(tasksetId, courseId, taskIndex, rating, answer, msgCount, sessionMins)
+                        .catch(function() { /**/ });
+                },
+                function() {
+                    // On complete — could trigger a thank-you notification or survey.
+                }
+            );
+        }).catch(function() {
+            UI.showNotification('Could not load testing tasks.', 'error');
+        });
     };
 
     /**

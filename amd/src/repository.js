@@ -277,6 +277,46 @@ define(['core/ajax'], function(Ajax) {
         }])[0];
     };
 
+    /**
+     * Get the active user testing task set for a course.
+     *
+     * @param {number} courseid
+     * @returns {Promise}
+     */
+    const getUserTesting = function(courseid) {
+        return Ajax.call([{
+            methodname: 'local_ai_course_assistant_get_usertesting',
+            args: {courseid: courseid},
+        }])[0];
+    };
+
+    /**
+     * Submit a user testing task response.
+     *
+     * @param {number} tasksetid
+     * @param {number} courseid
+     * @param {number} taskIndex
+     * @param {number} rating
+     * @param {string} answer
+     * @param {number} messageCount
+     * @param {number} sessionMinutes
+     * @returns {Promise}
+     */
+    const submitUserTestingResponse = function(tasksetid, courseid, taskIndex, rating, answer, messageCount, sessionMinutes) {
+        return Ajax.call([{
+            methodname: 'local_ai_course_assistant_submit_usertesting_response',
+            args: {
+                tasksetid: tasksetid,
+                courseid: courseid,
+                task_index: taskIndex,
+                rating: rating || 0,
+                answer: answer || '',
+                message_count: messageCount || 0,
+                session_minutes: sessionMinutes || 0,
+            },
+        }])[0];
+    };
+
     return {
         sendMessage: sendMessage,
         getHistory: getHistory,
@@ -294,5 +334,7 @@ define(['core/ajax'], function(Ajax) {
         emailStudyNotes: emailStudyNotes,
         getSurvey: getSurvey,
         submitSurveyResponse: submitSurveyResponse,
+        getUserTesting: getUserTesting,
+        submitUserTestingResponse: submitUserTestingResponse,
     };
 });

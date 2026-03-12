@@ -4296,6 +4296,299 @@ define([
         drawer.appendChild(panel);
     };
 
+    /**
+     * Show the user testing panel (Option B: in-widget task flow).
+     *
+     * @param {Object} tasksetData  {id, title, tasks[], completed_count}
+     * @param {Function} onSubmitTask  Called with (tasksetId, taskIndex, rating, answer) for each task
+     * @param {Function} onComplete  Called when all tasks are done
+     */
+    const showUserTestingPanel = function(tasksetData, onSubmitTask, onComplete) {
+        if (!drawer) { return; }
+        var existing = drawer.querySelector('.aica-usertesting-panel');
+        if (existing) { existing.remove(); }
+
+        var tasks = tasksetData.tasks || [];
+        var currentIdx = tasksetData.completed_count || 0;
+        if (currentIdx >= tasks.length) {
+            showNotification('You have completed all testing tasks. Thank you!', 'info');
+            return;
+        }
+
+        var panel = document.createElement('div');
+        panel.className = 'aica-usertesting-panel';
+        panel.style.cssText = 'position:absolute;inset:0;z-index:210;background:#fff;display:flex;flex-direction:column;' +
+            'overflow:hidden;border-radius:inherit';
+
+        function renderTask(idx) {
+            panel.innerHTML = '';
+            var task = tasks[idx];
+
+            // Header.
+            var header = document.createElement('div');
+            header.style.cssText = 'padding:14px 16px;border-bottom:1px solid #e2e8f0;flex-shrink:0;display:flex;' +
+                'align-items:center;justify-content:space-between';
+            var titleEl = document.createElement('h3');
+            titleEl.style.cssText = 'margin:0;font-size:15px;font-weight:600;color:#1e293b';
+            titleEl.textContent = tasksetData.title || 'User Testing';
+            header.appendChild(titleEl);
+            var closeBtn = document.createElement('button');
+            closeBtn.type = 'button';
+            closeBtn.style.cssText = 'background:none;border:none;font-size:20px;cursor:pointer;color:#94a3b8;padding:0 4px';
+            closeBtn.innerHTML = '&times;';
+            closeBtn.addEventListener('click', function() { panel.remove(); });
+            header.appendChild(closeBtn);
+            panel.appendChild(header);
+
+            // Progress bar.
+            var progressWrap = document.createElement('div');
+            progressWrap.style.cssText = 'padding:8px 16px;flex-shrink:0;border-bottom:1px solid #f1f5f9';
+            var progressText = document.createElement('div');
+            progressText.style.cssText = 'font-size:12px;color:#64748b;margin-bottom:4px;font-weight:600';
+            progressText.textContent = 'Task ' + (idx + 1) + ' of ' + tasks.length;
+            progressWrap.appendChild(progressText);
+            var progressBar = document.createElement('div');
+            progressBar.style.cssText = 'height:4px;background:#e2e8f0;border-radius:2px;overflow:hidden';
+            var progressFill = document.createElement('div');
+            var pct = ((idx) / tasks.length * 100);
+            progressFill.style.cssText = 'height:100%;background:var(--aica-brand-color, #173140);border-radius:2px;' +
+                'transition:width 0.3s;width:' + pct + '%';
+            progressBar.appendChild(progressFill);
+            progressWrap.appendChild(progressBar);
+            panel.appendChild(progressWrap);
+
+            // Content.
+            var content = document.createElement('div');
+            content.style.cssText = 'flex:1;overflow-y:auto;padding:16px';
+
+            // Task instruction.
+            var instrDiv = document.createElement('div');
+            instrDiv.style.cssText = 'background:#f0f9ff;border:1px solid #bae6fd;border-radius:10px;padding:14px;margin-bottom:16px';
+            var instrLabel = document.createElement('div');
+            instrLabel.style.cssText = 'font-size:11px;font-weight:700;color:#0369a1;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px';
+            instrLabel.textContent = 'Your Task';
+            instrDiv.appendChild(instrLabel);
+            var instrText = document.createElement('div');
+            instrText.style.cssText = 'font-size:14px;color:#1e293b;line-height:1.5';
+            instrText.textContent = task.instruction || '';
+            instrDiv.appendChild(instrText);
+            content.appendChild(instrDiv);
+
+            // Pause hint.
+            var hint = document.createElement('div');
+            hint.style.cssText = 'font-size:12px;color:#94a3b8;text-align:center;margin-bottom:16px;font-style:italic';
+            if (task.type === 'action_then_rate') {
+                hint.textContent = 'Close this panel to interact with SOLA, then come back to rate.';
+            }
+            if (hint.textContent) { content.appendChild(hint); }
+
+            // Rating section (for action_then_rate).
+            var selectedRating = 0;
+            if (task.type === 'action_then_rate') {
+                var ratingSection = document.createElement('div');
+                ratingSection.style.cssText = 'margin-bottom:16px';
+                var ratingLabel = document.createElement('div');
+                ratingLabel.style.cssText = 'font-size:13px;font-weight:600;color:#334155;margin-bottom:8px';
+                ratingLabel.textContent = task.rating_label || 'Rate this task';
+                ratingSection.appendChild(ratingLabel);
+
+                var ratingRow = document.createElement('div');
+                ratingRow.style.cssText = 'display:flex;gap:8px;align-items:center';
+                var min = task.min || 1;
+                var max = task.max || 5;
+                if (task.min_label) {
+                    var ml = document.createElement('span');
+                    ml.style.cssText = 'font-size:11px;color:#94a3b8;white-space:nowrap';
+                    ml.textContent = task.min_label;
+                    ratingRow.appendChild(ml);
+                }
+                for (var r = min; r <= max; r++) {
+                    (function(val) {
+                        var btn = document.createElement('button');
+                        btn.type = 'button';
+                        btn.dataset.val = val;
+                        btn.style.cssText = 'width:40px;height:40px;border-radius:50%;border:2px solid #d1d5db;background:#fff;' +
+                            'font-size:16px;font-weight:600;cursor:pointer;color:#475569;transition:all 0.15s';
+                        btn.textContent = val;
+                        btn.addEventListener('click', function() {
+                            selectedRating = val;
+                            ratingRow.querySelectorAll('button').forEach(function(b) {
+                                b.style.borderColor = '#d1d5db';
+                                b.style.background = '#fff';
+                                b.style.color = '#475569';
+                            });
+                            btn.style.borderColor = 'var(--aica-brand-color, #173140)';
+                            btn.style.background = 'var(--aica-brand-color, #173140)';
+                            btn.style.color = '#fff';
+                        });
+                        ratingRow.appendChild(btn);
+                    })(r);
+                }
+                if (task.max_label) {
+                    var xl = document.createElement('span');
+                    xl.style.cssText = 'font-size:11px;color:#94a3b8;white-space:nowrap';
+                    xl.textContent = task.max_label;
+                    ratingRow.appendChild(xl);
+                }
+                ratingSection.appendChild(ratingRow);
+                content.appendChild(ratingSection);
+            }
+
+            // MC options (for multiple_choice).
+            var mcContainer = null;
+            if (task.type === 'multiple_choice') {
+                mcContainer = document.createElement('div');
+                mcContainer.style.cssText = 'display:flex;flex-direction:column;gap:6px;margin-bottom:16px';
+                (task.options || []).forEach(function(opt) {
+                    var optRow = document.createElement('label');
+                    optRow.style.cssText = 'display:flex;align-items:center;gap:8px;font-size:13px;color:#475569;cursor:pointer;' +
+                        'padding:10px 12px;border:1px solid #e2e8f0;border-radius:8px;transition:border-color 0.15s';
+                    var radio = document.createElement('input');
+                    radio.type = 'radio';
+                    radio.name = 'aica-ut-mc';
+                    radio.value = opt;
+                    optRow.appendChild(radio);
+                    optRow.appendChild(document.createTextNode(opt));
+                    optRow.addEventListener('click', function() {
+                        mcContainer.querySelectorAll('label').forEach(function(l) {
+                            l.style.borderColor = '#e2e8f0'; l.style.background = '';
+                        });
+                        optRow.style.borderColor = 'var(--aica-brand-color, #173140)';
+                        optRow.style.background = '#f0f9ff';
+                    });
+                    mcContainer.appendChild(optRow);
+                });
+                content.appendChild(mcContainer);
+            }
+
+            // Follow-up / free text.
+            var textarea = null;
+            var textLabel = task.type === 'free_response' ? (task.instruction ? '' : 'Your response') :
+                (task.follow_up ? task.follow_up : '');
+            if (task.type === 'free_response' || task.follow_up) {
+                var taDiv = document.createElement('div');
+                taDiv.style.cssText = 'margin-bottom:16px';
+                if (textLabel) {
+                    var taLbl = document.createElement('div');
+                    taLbl.style.cssText = 'font-size:13px;font-weight:600;color:#334155;margin-bottom:6px';
+                    taLbl.textContent = textLabel;
+                    taDiv.appendChild(taLbl);
+                }
+                textarea = document.createElement('textarea');
+                textarea.style.cssText = 'width:100%;min-height:80px;padding:8px 10px;border:1px solid #d1d5db;border-radius:8px;' +
+                    'font-size:13px;resize:vertical;font-family:inherit;color:#334155;background:#f8fafc';
+                textarea.placeholder = 'Type your response here...';
+                taDiv.appendChild(textarea);
+                content.appendChild(taDiv);
+            }
+
+            panel.appendChild(content);
+
+            // Footer.
+            var footer = document.createElement('div');
+            footer.style.cssText = 'padding:12px 16px;border-top:1px solid #e2e8f0;flex-shrink:0;display:flex;gap:8px';
+
+            // Pause button (minimize panel to interact with SOLA).
+            if (task.type === 'action_then_rate') {
+                var pauseBtn = document.createElement('button');
+                pauseBtn.type = 'button';
+                pauseBtn.style.cssText = 'flex:1;padding:10px;border:1px solid #d1d5db;border-radius:8px;font-size:13px;' +
+                    'font-weight:600;cursor:pointer;color:#475569;background:#fff;transition:all 0.15s';
+                pauseBtn.textContent = 'Go to SOLA';
+                pauseBtn.addEventListener('click', function() { panel.remove(); });
+                footer.appendChild(pauseBtn);
+            }
+
+            var isLast = (idx >= tasks.length - 1);
+            var nextBtn = document.createElement('button');
+            nextBtn.type = 'button';
+            nextBtn.style.cssText = 'flex:1;padding:10px;border:none;border-radius:8px;font-size:14px;font-weight:600;' +
+                'cursor:pointer;color:#fff;background:var(--aica-brand-color, #173140);transition:opacity 0.15s';
+            nextBtn.textContent = isLast ? 'Finish' : 'Next Task';
+            nextBtn.addEventListener('click', function() {
+                // Validate.
+                if (task.type === 'action_then_rate' && selectedRating === 0) {
+                    showNotification('Please provide a rating before continuing.', 'warning');
+                    return;
+                }
+                if (task.type === 'multiple_choice') {
+                    var checked = mcContainer ? mcContainer.querySelector('input:checked') : null;
+                    if (!checked) {
+                        showNotification('Please select an option.', 'warning');
+                        return;
+                    }
+                }
+                if (task.type === 'free_response' && textarea && !textarea.value.trim()) {
+                    showNotification('Please type a response.', 'warning');
+                    return;
+                }
+
+                nextBtn.disabled = true;
+                nextBtn.textContent = 'Saving...';
+                nextBtn.style.opacity = '0.6';
+
+                // Collect answer.
+                var rating = selectedRating;
+                var answer = '';
+                if (textarea) { answer = textarea.value.trim(); }
+                if (task.type === 'multiple_choice' && mcContainer) {
+                    var ch = mcContainer.querySelector('input:checked');
+                    answer = ch ? ch.value : '';
+                }
+
+                if (onSubmitTask) {
+                    onSubmitTask(tasksetData.id, idx, rating, answer);
+                }
+
+                if (isLast) {
+                    // Show completion.
+                    panel.innerHTML = '';
+                    // Re-add header.
+                    var doneHeader = document.createElement('div');
+                    doneHeader.style.cssText = 'padding:14px 16px;border-bottom:1px solid #e2e8f0;flex-shrink:0;display:flex;' +
+                        'align-items:center;justify-content:space-between';
+                    var doneTitle = document.createElement('h3');
+                    doneTitle.style.cssText = 'margin:0;font-size:15px;font-weight:600;color:#1e293b';
+                    doneTitle.textContent = tasksetData.title || 'User Testing';
+                    doneHeader.appendChild(doneTitle);
+                    panel.appendChild(doneHeader);
+
+                    var doneContent = document.createElement('div');
+                    doneContent.style.cssText = 'flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px 20px;text-align:center';
+                    var checkmark = document.createElement('div');
+                    checkmark.style.cssText = 'font-size:48px;margin-bottom:12px';
+                    checkmark.textContent = '\u2705';
+                    doneContent.appendChild(checkmark);
+                    var doneH = document.createElement('h3');
+                    doneH.style.cssText = 'font-size:18px;font-weight:600;color:#1e293b;margin:0 0 8px';
+                    doneH.textContent = 'All tasks complete!';
+                    doneContent.appendChild(doneH);
+                    var doneP = document.createElement('p');
+                    doneP.style.cssText = 'font-size:13px;color:#64748b;margin:0 0 20px';
+                    doneP.textContent = 'Thank you for your feedback. Your responses help us improve SOLA for all students.';
+                    doneContent.appendChild(doneP);
+                    var doneBtn = document.createElement('button');
+                    doneBtn.type = 'button';
+                    doneBtn.style.cssText = 'padding:10px 24px;border:none;border-radius:8px;font-size:14px;font-weight:600;' +
+                        'cursor:pointer;color:#fff;background:var(--aica-brand-color, #173140)';
+                    doneBtn.textContent = 'Done';
+                    doneBtn.addEventListener('click', function() { panel.remove(); });
+                    doneContent.appendChild(doneBtn);
+                    panel.appendChild(doneContent);
+
+                    if (onComplete) { onComplete(); }
+                } else {
+                    renderTask(idx + 1);
+                }
+            });
+            footer.appendChild(nextBtn);
+            panel.appendChild(footer);
+        }
+
+        renderTask(currentIdx);
+        drawer.appendChild(panel);
+    };
+
     return {
         initUI: initUI,
         isOpen: isOpen,
@@ -4362,5 +4655,6 @@ define([
         startMouthSyncFromAnalyser: startMouthSyncFromAnalyser,
         stopMouthSync: stopMouthSync,
         isStartersVisible: isStartersVisible,
+        showUserTestingPanel: showUserTestingPanel,
     };
 });

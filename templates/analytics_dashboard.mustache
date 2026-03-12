@@ -452,6 +452,65 @@
     <p class="text-muted">No survey responses collected yet.</p>
     {{/course.has_survey_data}}
 
+    {{! User Testing Results }}
+    {{#course.has_usertesting_data}}
+    <h3 class="mt-4">User Testing Results</h3>
+    <div class="alert alert-info">
+        <strong>{{course.usertesting_data.total_respondents}}</strong> tester(s) have submitted responses.
+    </div>
+
+    {{#course.usertesting_data.tasks}}
+    <div class="card mb-3">
+        <div class="card-header">
+            <strong>{{instruction}}</strong>
+            <span class="badge badge-secondary ml-2">{{response_count}} responses</span>
+            <span class="badge badge-light ml-1" title="Average messages at time of response">Avg {{avg_messages}} msgs</span>
+            <span class="badge badge-light ml-1" title="Average session duration at time of response">Avg {{avg_session_minutes}} min</span>
+        </div>
+        <div class="card-body">
+            {{#is_action_then_rate}}
+            <p><strong>Average Rating:</strong> {{avg_rating}} / 5</p>
+            {{#has_comments}}
+            <div style="max-height:200px;overflow-y:auto">
+                {{#comments}}
+                <div class="p-2 mb-1" style="background:#f8fafc;border-radius:6px;font-size:13px">{{text}}</div>
+                {{/comments}}
+            </div>
+            {{/has_comments}}
+            {{/is_action_then_rate}}
+
+            {{#is_multiple_choice}}
+            <table class="table table-sm">
+                <thead><tr><th>Option</th><th>Count</th></tr></thead>
+                <tbody>
+                {{#options}}
+                <tr><td>{{label}}</td><td>{{count}}</td></tr>
+                {{/options}}
+                </tbody>
+            </table>
+            {{/is_multiple_choice}}
+
+            {{#is_free_response}}
+            {{#has_answers}}
+            <div style="max-height:200px;overflow-y:auto">
+                {{#answers}}
+                <div class="p-2 mb-1" style="background:#f8fafc;border-radius:6px;font-size:13px">{{text}}</div>
+                {{/answers}}
+            </div>
+            {{/has_answers}}
+            {{^has_answers}}
+            <p class="text-muted">No responses yet.</p>
+            {{/has_answers}}
+            {{/is_free_response}}
+        </div>
+    </div>
+    {{/course.usertesting_data.tasks}}
+    {{/course.has_usertesting_data}}
+    {{^course.has_usertesting_data}}
+    <h3 class="mt-4">User Testing Results</h3>
+    <p class="text-muted">No user testing responses collected yet.</p>
+    {{/course.has_usertesting_data}}
+
     {{/course.has_data}}
     {{/has_course_selected}}
 

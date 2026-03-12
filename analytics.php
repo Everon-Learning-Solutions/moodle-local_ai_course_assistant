@@ -240,6 +240,58 @@ if ($courseid > 0) {
             // Survey tables may not exist yet on older installs.
         }
 
+        // User testing results.
+        $utData = null;
+        try {
+            $utResults = \local_ai_course_assistant\usertesting_manager::get_results($courseid);
+            if ($utResults['total_respondents'] > 0) {
+                $utTasks = [];
+                foreach ($utResults['tasks'] as $t) {
+                    $ut = [
+                        'instruction' => $t['instruction'],
+                        'type' => $t['type'],
+                        'response_count' => $t['response_count'],
+                        'avg_messages' => $t['avg_messages'],
+                        'avg_session_minutes' => $t['avg_session_minutes'],
+                        'is_action_then_rate' => $t['type'] === 'action_then_rate',
+                        'is_multiple_choice' => $t['type'] === 'multiple_choice',
+                        'is_free_response' => $t['type'] === 'free_response',
+                    ];
+                    if ($t['type'] === 'action_then_rate') {
+                        $ut['avg_rating'] = $t['avg_rating'] ?? 0;
+                        $comments = [];
+                        foreach (array_slice($t['comments'] ?? [], 0, 20) as $c) {
+                            $comments[] = ['text' => htmlspecialchars($c)];
+                        }
+                        $ut['comments'] = $comments;
+                        $ut['has_comments'] = !empty($comments);
+                    }
+                    if ($t['type'] === 'multiple_choice' && !empty($t['option_counts'])) {
+                        $opts = [];
+                        foreach ($t['option_counts'] as $label => $cnt) {
+                            $opts[] = ['label' => $label, 'count' => $cnt];
+                        }
+                        $ut['options'] = $opts;
+                    }
+                    if ($t['type'] === 'free_response' && !empty($t['answers'])) {
+                        $answers = [];
+                        foreach (array_slice($t['answers'], 0, 20) as $a) {
+                            $answers[] = ['text' => htmlspecialchars($a)];
+                        }
+                        $ut['answers'] = $answers;
+                        $ut['has_answers'] = !empty($answers);
+                    }
+                    $utTasks[] = $ut;
+                }
+                $utData = [
+                    'total_respondents' => $utResults['total_respondents'],
+                    'tasks' => $utTasks,
+                ];
+            }
+        } catch (\Throwable $e) {
+            // User testing tables may not exist yet.
+        }
+
         $courseData = [
             'courseid'   => $courseid,
             'coursename' => $courseName,
@@ -267,6 +319,8 @@ if ($courseid > 0) {
             'has_feedback'    => $feedbacktotal > 0,
             'survey_data'     => $surveyData,
             'has_survey_data' => ($surveyData !== null),
+            'usertesting_data' => $utData,
+            'has_usertesting_data' => ($utData !== null),
             'token_analytics_url' => (new moodle_url('/local/ai_course_assistant/token_analytics.php',
                 ['courseid' => $courseid, 'range' => $range]))->out(false),
         ];

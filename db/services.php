@@ -141,4 +141,18 @@ $functions = [
         'ajax'         => true,
         'capabilities' => 'local/ai_course_assistant:use',
     ],
+    'local_ai_course_assistant_get_usertesting' => [
+        'classname'    => \local_ai_course_assistant\external\get_usertesting::class,
+        'description'  => 'Get the active user testing task set for a course.',
+        'type'         => 'read',
+        'ajax'         => true,
+        'capabilities' => 'local/ai_course_assistant:use',
+    ],
+    'local_ai_course_assistant_submit_usertesting_response' => [
+        'classname'    => \local_ai_course_assistant\external\submit_usertesting_response::class,
+        'description'  => 'Submit a user testing task response.',
+        'type'         => 'write',
+        'ajax'         => true,
+        'capabilities' => 'local/ai_course_assistant:use',
+    ],
 ];
