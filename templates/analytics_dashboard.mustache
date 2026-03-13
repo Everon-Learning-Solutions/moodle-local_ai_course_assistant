@@ -62,9 +62,35 @@
     <p class="text-muted">Enable or disable SOLA per course. Click a course name to view detailed analytics.</p>
 
     {{#has_courses}}
+    <div class="d-flex align-items-center mb-2 flex-wrap" style="gap:8px">
+        <input type="text" id="sola-course-search" class="form-control form-control-sm" style="max-width:300px"
+               placeholder="Search courses..." aria-label="Filter course list">
+        <form method="post" action="{{form_action}}" style="display:inline">
+            <input type="hidden" name="sesskey" value="{{sesskey}}">
+            <input type="hidden" name="action" value="bulktoggle">
+            <input type="hidden" name="enabled" value="0">
+            <input type="hidden" name="courseid" value="{{courseid_param}}">
+            <input type="hidden" name="range" value="{{range}}">
+            <button type="submit" class="btn btn-sm btn-outline-danger"
+                    onclick="return confirm('Disable SOLA on ALL courses?')">
+                Disable All
+            </button>
+        </form>
+        <form method="post" action="{{form_action}}" style="display:inline">
+            <input type="hidden" name="sesskey" value="{{sesskey}}">
+            <input type="hidden" name="action" value="bulktoggle">
+            <input type="hidden" name="enabled" value="1">
+            <input type="hidden" name="courseid" value="{{courseid_param}}">
+            <input type="hidden" name="range" value="{{range}}">
+            <button type="submit" class="btn btn-sm btn-outline-success"
+                    onclick="return confirm('Enable SOLA on ALL courses?')">
+                Enable All
+            </button>
+        </form>
+    </div>
     <div class="card mb-4">
         <div class="card-body p-0">
-            <table class="table table-striped mb-0">
+            <table class="table table-striped mb-0" id="sola-course-table">
                 <thead>
                     <tr>
                         <th>Course</th>
@@ -546,6 +572,22 @@
 {{#has_course_selected}}
 {{#course.has_data}}
 {{#js}}
+(function() {
+    // Course search filter.
+    var searchBox = document.getElementById('sola-course-search');
+    var courseTable = document.getElementById('sola-course-table');
+    if (searchBox && courseTable) {
+        searchBox.addEventListener('input', function() {
+            var q = this.value.toLowerCase();
+            var rows = courseTable.querySelectorAll('tbody tr');
+            for (var i = 0; i < rows.length; i++) {
+                var name = rows[i].textContent.toLowerCase();
+                rows[i].style.display = name.indexOf(q) !== -1 ? '' : 'none';
+            }
+        });
+    }
+})();
+
 (function() {
     var canvas = document.getElementById('aitc-usage-chart');
     if (!canvas) return;

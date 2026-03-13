@@ -47,6 +47,19 @@ if ($action === 'toggle' && confirm_sesskey()) {
         ['courseid' => $courseid, 'range' => $range]));
 }
 
+// ── Handle bulk enable/disable all courses ──────────────────────────────────
+if ($action === 'bulktoggle' && confirm_sesskey()) {
+    $enabled = required_param('enabled', PARAM_INT);
+    $allVisible = $DB->get_records_sql(
+        "SELECT c.id FROM {course} c WHERE c.id > 1 AND c.visible = 1"
+    );
+    foreach ($allVisible as $c) {
+        set_config('sola_enabled_course_' . $c->id, $enabled ? '1' : '0', 'local_ai_course_assistant');
+    }
+    redirect(new moodle_url('/local/ai_course_assistant/analytics.php',
+        ['courseid' => $courseid, 'range' => $range]));
+}
+
 $PAGE->set_url(new moodle_url('/local/ai_course_assistant/analytics.php',
     ['courseid' => $courseid, 'range' => $range]));
 $PAGE->set_context($syscontext);
@@ -358,8 +371,9 @@ $templatedata = [
         ['courseid' => $courseid, 'range' => 0]))->out(false),
 
     // Toggle form helpers.
-    'sesskey'     => sesskey(),
-    'form_action' => (new moodle_url('/local/ai_course_assistant/analytics.php'))->out(false),
+    'sesskey'        => sesskey(),
+    'form_action'    => (new moodle_url('/local/ai_course_assistant/analytics.php'))->out(false),
+    'courseid_param' => $courseid,
 
     // Links.
     'token_analytics_url' => (new moodle_url('/local/ai_course_assistant/token_analytics.php',

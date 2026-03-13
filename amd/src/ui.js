@@ -3356,14 +3356,27 @@ define([
                 emailRow.appendChild(emailLabel);
                 emailBlock.appendChild(emailRow);
 
-                // Show user's email (read-only display).
-                const emailAddrRow = document.createElement('div');
-                emailAddrRow.style.cssText = 'margin-top:4px;font-size:12px;color:#6c757d';
-                emailAddrRow.textContent = 'Sends to: ' + (config.userEmail || 'your Moodle email');
-                emailBlock.appendChild(emailAddrRow);
+                // Editable email input.
+                const emailInputRow = document.createElement('div');
+                emailInputRow.style.cssText = 'margin-top:4px;display:flex;gap:6px;align-items:center';
+                const emailInput = document.createElement('input');
+                emailInput.type = 'email';
+                emailInput.id = 'aica-reminder-email';
+                emailInput.placeholder = 'your@email.com';
+                emailInput.value = config.emailDestination || config.userEmail || '';
+                emailInput.style.cssText = 'flex:1;padding:6px 8px;border:1px solid #d1d5db;border-radius:6px;' +
+                    'font-size:13px;background:#f8fafc;color:#334155';
+                emailInputRow.appendChild(emailInput);
+                emailBlock.appendChild(emailInputRow);
+
+                const emailHint = document.createElement('div');
+                emailHint.style.cssText = 'font-size:11px;color:#94a3b8;margin-top:2px';
+                emailHint.textContent = 'Defaults to your Moodle email if left blank.';
+                emailBlock.appendChild(emailHint);
 
                 remSection.appendChild(emailBlock);
                 remSection._emailToggle = emailToggle;
+                remSection._emailInput = emailInput;
             }
 
             // --- WhatsApp reminders ---
@@ -3525,7 +3538,8 @@ define([
             if (remSec && callbacks.onReminderUpdate) {
                 var freq = remSec._freqSelect ? remSec._freqSelect.value : 'daily';
                 if (remSec._emailToggle) {
-                    callbacks.onReminderUpdate('email', remSec._emailToggle.checked, '', '', freq);
+                    var emailDest = remSec._emailInput ? remSec._emailInput.value.trim() : '';
+                    callbacks.onReminderUpdate('email', remSec._emailToggle.checked, emailDest, '', freq);
                 }
                 if (remSec._waToggle) {
                     var phone = remSec._phoneInput ? remSec._phoneInput.value.trim() : '';

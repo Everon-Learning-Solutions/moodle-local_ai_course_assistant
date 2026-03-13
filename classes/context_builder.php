@@ -638,9 +638,12 @@ class context_builder {
             . "[SOURCE:page] — your answer is primarily based on the current page the student is viewing\n"
             . "[SOURCE:activity:ID] — your answer draws from a specific course activity/resource. "
             . "Use the numeric id from the course structure above (e.g. [SOURCE:activity:47]). "
-            . "Always prefer this over [SOURCE:course] when you can identify the specific activity.\n"
-            . "[SOURCE:course] — your answer draws from course materials generally but you cannot identify one specific activity\n"
+            . "This creates a direct link to that activity so the student can review the original material.\n"
+            . "[SOURCE:course] — ONLY when your answer draws from course materials but you truly cannot identify which specific activity\n"
             . "[SOURCE:general] — your answer uses general knowledge not found in the course materials\n\n"
+            . "IMPORTANT: Always prefer [SOURCE:activity:ID] over [SOURCE:course]. "
+            . "Look at the course structure above and match the topic of your answer to the most relevant activity by name. "
+            . "Use [SOURCE:course] only as a last resort when no single activity is a clear match.\n\n"
             . "Always include exactly one [SOURCE:xxx] tag. Place it on its own line just before [SOLA_NEXT].";
     }
 

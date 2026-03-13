@@ -1891,6 +1891,7 @@ define([
 
         // Fetch reminder preferences, then show panel.
         var emailReminderEnabled = false;
+        var emailDestination = '';
         var whatsappReminderEnabled = false;
         var whatsappDestination = '';
         var reminderFrequency = 'daily';
@@ -1912,6 +1913,7 @@ define([
                     emailReminderEnabled: emailReminderEnabled,
                     whatsappReminderEnabled: whatsappReminderEnabled,
                     whatsappDestination: whatsappDestination,
+                    emailDestination: emailDestination,
                     reminderFrequency: reminderFrequency,
                     userEmail: root.dataset.useremail || '',
                     userPhone: root.dataset.userphone || '',
@@ -1957,8 +1959,9 @@ define([
                 if (prefs && prefs.reminders) {
                     for (var i = 0; i < prefs.reminders.length; i++) {
                         var r = prefs.reminders[i];
-                        if (r.channel === 'email' && r.enabled) {
-                            emailReminderEnabled = true;
+                        if (r.channel === 'email') {
+                            emailReminderEnabled = !!r.enabled;
+                            emailDestination = r.destination || '';
                             reminderFrequency = r.frequency || 'daily';
                         }
                         if (r.channel === 'whatsapp') {
