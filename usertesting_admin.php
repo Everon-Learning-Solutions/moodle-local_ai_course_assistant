@@ -38,11 +38,11 @@ $coursename = '';
 if ($courseid > 0) {
     $course = $DB->get_record('course', ['id' => $courseid], 'id,fullname', MUST_EXIST);
     $coursename = $course->fullname;
-    $PAGE->set_title('User Testing Editor: ' . $coursename);
-    $PAGE->set_heading('User Testing Editor: ' . $coursename);
+    $PAGE->set_title('Usability Testing Editor: ' . $coursename);
+    $PAGE->set_heading('Usability Testing Editor: ' . $coursename);
 } else {
-    $PAGE->set_title('User Testing Editor: Global Default');
-    $PAGE->set_heading('User Testing Editor: Global Default');
+    $PAGE->set_title('Usability Testing Editor: Global Default');
+    $PAGE->set_heading('Usability Testing Editor: Global Default');
 }
 
 // Handle POST.

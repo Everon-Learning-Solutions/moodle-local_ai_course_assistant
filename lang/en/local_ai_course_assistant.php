@@ -363,10 +363,10 @@ $string['privacy:metadata:local_ai_course_assistant_reminders:country_code'] = '
 
 // AI Insights.
 $string['insights:title'] = 'AI Insights';
-$string['insights:desc'] = 'Analyze feedback, survey, and user testing data to surface issues, feature requests, and recommendations.';
+$string['insights:desc'] = 'Analyze feedback, survey, and usability testing data to surface issues, feature requests, and recommendations.';
 $string['insights:generate'] = 'Generate AI Insights';
 $string['insights:generating'] = 'Analyzing data… this may take a moment.';
-$string['insights:no_data'] = 'No feedback, survey, or user testing data available to analyze yet. Insights will be available once users submit feedback or complete surveys.';
+$string['insights:no_data'] = 'No feedback, survey, or usability testing data available to analyze yet. Insights will be available once users submit feedback or complete surveys.';
 $string['insights:error'] = 'Could not generate insights.';
 
 // Analytics dashboard.

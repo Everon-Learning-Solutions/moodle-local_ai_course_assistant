@@ -4376,7 +4376,7 @@ define([
                 'align-items:center;justify-content:space-between';
             var titleEl = document.createElement('h3');
             titleEl.style.cssText = 'margin:0;font-size:15px;font-weight:600;color:#1e293b';
-            titleEl.textContent = tasksetData.title || 'User Testing';
+            titleEl.textContent = tasksetData.title || 'Usability Testing';
             header.appendChild(titleEl);
             var closeBtn = document.createElement('button');
             closeBtn.type = 'button';

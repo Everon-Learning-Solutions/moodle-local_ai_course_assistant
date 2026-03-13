@@ -716,18 +716,18 @@ if ($hassiteconfig) {
         ]
     ));
 
-    // --- User Testing ---
+    // --- Usability Testing ---
     $settings->add(new admin_setting_heading(
         'local_ai_course_assistant/usertesting_heading',
-        'User Testing',
-        'In-widget user testing with task-based evaluation. Students complete tasks inside SOLA and rate their experience. ' .
+        'Usability Testing',
+        'In-widget usability testing with task-based evaluation. Students complete tasks inside SOLA and rate their experience. ' .
         'Results appear in the analytics dashboard.'
     ));
 
     $settings->add(new admin_setting_configcheckbox(
         'local_ai_course_assistant/usertesting_enabled',
-        'Enable User Testing',
-        'Show the "User Testing" link in the widget footer. When enabled, students can access testing tasks.',
+        'Enable Usability Testing',
+        'Show the "Usability Testing" link in the widget footer. When enabled, students can access testing tasks.',
         '0'
     ));
 
@@ -735,7 +735,7 @@ if ($hassiteconfig) {
         'local_ai_course_assistant/usertesting_external_url',
         'External form URL (Option C)',
         'Optional: an external form URL (e.g. Google Forms, Typeform). Use placeholders: {{userid}}, {{courseid}}, {{messages}}, {{session_minutes}}. ' .
-        'If set, clicking "User Testing" opens this URL with context filled in. Leave blank to use the in-widget testing panel only.',
+        'If set, clicking "Usability Testing" opens this URL with context filled in. Leave blank to use the in-widget testing panel only.',
         '',
         PARAM_URL
     ));
@@ -757,10 +757,10 @@ if ($hassiteconfig) {
         'moodle/site:config'
     ));
 
-    // Register the User Testing Editor admin page.
+    // Register the Usability Testing Editor admin page.
     $ADMIN->add('localplugins', new admin_externalpage(
         'local_ai_course_assistant_usertesting',
-        'SOLA User Testing Editor',
+        'SOLA Usability Testing Editor',
         new moodle_url('/local/ai_course_assistant/usertesting_admin.php'),
         'moodle/site:config'
     ));

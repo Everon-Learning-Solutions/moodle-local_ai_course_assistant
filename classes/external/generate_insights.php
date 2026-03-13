@@ -23,9 +23,9 @@ use core_external\external_value;
 use local_ai_course_assistant\provider\base_provider;
 
 /**
- * Generate AI-powered insights from user feedback and user testing data.
+ * Generate AI-powered insights from user feedback and usability testing data.
  *
- * Admin-only endpoint that sends aggregated feedback and user testing
+ * Admin-only endpoint that sends aggregated feedback and usability testing
  * results to the configured AI provider for analysis, returning
  * actionable suggestions about SOLA issues and feature requests.
  *
@@ -78,12 +78,12 @@ class generate_insights extends external_api {
             }
         }
 
-        // Gather user testing data.
+        // Gather usability testing data.
         $uttext = '';
         try {
             $utResults = \local_ai_course_assistant\usertesting_manager::get_results($courseid);
             if ($utResults['total_respondents'] > 0) {
-                $uttext = "## User Testing Results ({$utResults['total_respondents']} respondents)\n\n";
+                $uttext = "## Usability Testing Results ({$utResults['total_respondents']} respondents)\n\n";
                 foreach ($utResults['tasks'] as $t) {
                     $uttext .= "### Task: {$t['instruction']}\n";
                     $uttext .= "Type: {$t['type']} | Responses: {$t['response_count']} | "
@@ -159,7 +159,7 @@ class generate_insights extends external_api {
         $institution = get_config('local_ai_course_assistant', 'institution_name') ?: 'Saylor University';
         $systemprompt = "You are a product analyst for SOLA ({$institution} Online Learning Assistant), "
             . "an AI-powered learning coach embedded in Moodle course pages. "
-            . "Analyze the following user feedback, survey responses, and user testing data "
+            . "Analyze the following user feedback, survey responses, and usability testing data "
             . "for the course \"{$course->fullname}\".\n\n"
             . "Provide a structured analysis with these sections:\n"
             . "1. **Key Issues** — Problems or pain points users are experiencing\n"

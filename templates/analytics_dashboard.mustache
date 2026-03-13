@@ -72,7 +72,7 @@
             <option value="disabled">SOLA Disabled</option>
         </select>
         <select id="sola-filter-ut" class="form-control form-control-sm" style="max-width:180px" aria-label="Filter by user testing">
-            <option value="">All User Testing</option>
+            <option value="">All Usability Testing</option>
             <option value="on">UT On</option>
             <option value="off">UT Off</option>
             <option value="inherit">UT Inherit</option>
@@ -98,7 +98,7 @@
 
             <span class="mx-1" style="border-left:1px solid #ccc;height:20px"></span>
 
-            <span style="font-size:13px;font-weight:600">User Testing:</span>
+            <span style="font-size:13px;font-weight:600">Usability Testing:</span>
             <button type="button" class="btn btn-sm btn-outline-success sola-bulk-action" data-action="bulktoggleut" data-utvalue="1">
                 Enable
             </button>
@@ -136,7 +136,7 @@
                             SOLA Status <span class="sola-sort-icon">&#8597;</span>
                         </th>
                         <th class="text-center sola-sortable" data-sort="ut" style="width:140px;cursor:pointer">
-                            User Testing <span class="sola-sort-icon">&#8597;</span>
+                            Usability Testing <span class="sola-sort-icon">&#8597;</span>
                         </th>
                         <th class="text-center sola-sortable" data-sort="data" style="width:100px;cursor:pointer">
                             Has Data <span class="sola-sort-icon">&#8597;</span>
@@ -560,9 +560,9 @@
     <p class="text-muted">No survey responses collected yet.</p>
     {{/course.has_survey_data}}
 
-    {{! User Testing Results }}
+    {{! Usability Testing Results }}
     {{#course.has_usertesting_data}}
-    <h3 class="mt-4">User Testing Results</h3>
+    <h3 class="mt-4">Usability Testing Results</h3>
     <div class="alert alert-info">
         <strong>{{course.usertesting_data.total_respondents}}</strong> tester(s) have submitted responses.
     </div>
@@ -615,13 +615,13 @@
     {{/course.usertesting_data.tasks}}
     {{/course.has_usertesting_data}}
     {{^course.has_usertesting_data}}
-    <h3 class="mt-4">User Testing Results</h3>
+    <h3 class="mt-4">Usability Testing Results</h3>
     <p class="text-muted">No user testing responses collected yet.</p>
     {{/course.has_usertesting_data}}
 
     {{! AI Insights }}
     <h3 class="mt-4">AI Insights</h3>
-    <p class="text-muted">Analyze feedback, survey, and user testing data to surface issues, feature requests, and recommendations.</p>
+    <p class="text-muted">Analyze feedback, survey, and usability testing data to surface issues, feature requests, and recommendations.</p>
     {{#course.has_any_feedback_data}}
     <div class="card mb-4" id="ai-insights-card">
         <div class="card-body">
@@ -640,7 +640,7 @@
     </div>
     {{/course.has_any_feedback_data}}
     {{^course.has_any_feedback_data}}
-    <p class="text-muted">No feedback, survey, or user testing data to analyze yet.</p>
+    <p class="text-muted">No feedback, survey, or usability testing data to analyze yet.</p>
     {{/course.has_any_feedback_data}}
 
     {{/course.has_data}}
@@ -733,7 +733,7 @@
         bulkBtns[b].addEventListener('click', function() {
             var ids = getSelectedIds();
             var action = this.getAttribute('data-action');
-            var label = action === 'bulktoggle' ? 'SOLA' : 'User Testing';
+            var label = action === 'bulktoggle' ? 'SOLA' : 'Usability Testing';
 
             if (ids.length === 0) {
                 if (!confirm('No courses selected. Apply to ALL courses?')) return;
