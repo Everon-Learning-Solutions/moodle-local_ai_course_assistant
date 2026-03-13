@@ -292,7 +292,7 @@ class hook_callbacks {
             'whatsappreminders'  => (bool)get_config('local_ai_course_assistant', 'reminders_whatsapp_enabled'),
             'useremail'          => $USER->email,
             'userphone'          => $USER->phone1 ?: '',
-            'usertestingenabled'  => (bool)get_config('local_ai_course_assistant', 'usertesting_enabled'),
+            'usertestingenabled'  => self::is_usertesting_enabled($courseid),
             'usertestingexternalurl' => get_config('local_ai_course_assistant', 'usertesting_external_url') ?: '',
             'surveyenabled'      => get_config('local_ai_course_assistant', 'survey_enabled') !== '0' ? '1' : '0',
             'surveytrigger'      => (int)(get_config('local_ai_course_assistant', 'survey_trigger_messages') ?: 10),
@@ -317,5 +317,26 @@ class hook_callbacks {
         $PAGE->requires->js_call_amd('local_ai_course_assistant/chat', 'init');
 
         $hook->add_html($html);
+    }
+
+    /**
+     * Check if user testing is enabled for a given course.
+     *
+     * Per-course override takes precedence over the global setting.
+     * Values: '' (not set) = inherit global, '1' = force on, '0' = force off.
+     *
+     * @param int $courseid
+     * @return bool
+     */
+    private static function is_usertesting_enabled(int $courseid): bool {
+        $perCourse = get_config('local_ai_course_assistant', 'sola_usertesting_course_' . $courseid);
+        if ($perCourse === '1') {
+            return true;
+        }
+        if ($perCourse === '0') {
+            return false;
+        }
+        // Inherit global setting.
+        return (bool) get_config('local_ai_course_assistant', 'usertesting_enabled');
     }
 }

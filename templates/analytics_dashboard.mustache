@@ -95,6 +95,7 @@
                     <tr>
                         <th>Course</th>
                         <th class="text-center" style="width:120px">SOLA Status</th>
+                        <th class="text-center" style="width:140px">User Testing</th>
                         <th class="text-center" style="width:100px">Has Data</th>
                     </tr>
                 </thead>
@@ -131,6 +132,34 @@
                                     Disabled
                                 </button>
                                 {{/enabled}}
+                            </form>
+                        </td>
+                        <td class="text-center">
+                            <form method="post" action="{{form_action}}" style="display:inline">
+                                <input type="hidden" name="sesskey" value="{{sesskey}}">
+                                <input type="hidden" name="action" value="toggleut">
+                                <input type="hidden" name="togglecourseid" value="{{id}}">
+                                <input type="hidden" name="courseid" value="{{courseid_param}}">
+                                <input type="hidden" name="range" value="{{range}}">
+                                {{#ut_on}}
+                                <input type="hidden" name="utvalue" value="">
+                                <button type="submit" class="btn btn-sm btn-success" title="On (per-course) — click to inherit global">
+                                    On
+                                </button>
+                                {{/ut_on}}
+                                {{#ut_off}}
+                                <input type="hidden" name="utvalue" value="1">
+                                <button type="submit" class="btn btn-sm btn-outline-danger" title="Off (per-course) — click to enable">
+                                    Off
+                                </button>
+                                {{/ut_off}}
+                                {{#ut_inherit}}
+                                <input type="hidden" name="utvalue" value="{{#ut_effective}}0{{/ut_effective}}{{^ut_effective}}1{{/ut_effective}}">
+                                <button type="submit" class="btn btn-sm {{#ut_effective}}btn-outline-success{{/ut_effective}}{{^ut_effective}}btn-outline-secondary{{/ut_effective}}"
+                                        title="Inheriting global ({{#ut_effective}}on{{/ut_effective}}{{^ut_effective}}off{{/ut_effective}}) — click to override">
+                                    {{#ut_effective}}Global: On{{/ut_effective}}{{^ut_effective}}Global: Off{{/ut_effective}}
+                                </button>
+                                {{/ut_inherit}}
                             </form>
                         </td>
                         <td class="text-center">

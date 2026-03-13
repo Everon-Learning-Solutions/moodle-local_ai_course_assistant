@@ -47,6 +47,20 @@ if ($action === 'toggle' && confirm_sesskey()) {
         ['courseid' => $courseid, 'range' => $range]));
 }
 
+// ── Handle per-course user testing toggle POST ──────────────────────────────
+if ($action === 'toggleut' && confirm_sesskey()) {
+    $togglecourseid = required_param('togglecourseid', PARAM_INT);
+    $utvalue = required_param('utvalue', PARAM_RAW);
+    // '' = inherit global, '1' = force on, '0' = force off.
+    if ($utvalue === '') {
+        unset_config('sola_usertesting_course_' . $togglecourseid, 'local_ai_course_assistant');
+    } else {
+        set_config('sola_usertesting_course_' . $togglecourseid, $utvalue, 'local_ai_course_assistant');
+    }
+    redirect(new moodle_url('/local/ai_course_assistant/analytics.php',
+        ['courseid' => $courseid, 'range' => $range]));
+}
+
 // ── Handle bulk enable/disable all courses ──────────────────────────────────
 if ($action === 'bulktoggle' && confirm_sesskey()) {
     $enabled = required_param('enabled', PARAM_INT);
@@ -93,6 +107,11 @@ foreach ($allCourses as $c) {
     $hasData = isset($coursesWithData[$c->id]);
     $enabledVal = get_config('local_ai_course_assistant', 'sola_enabled_course_' . $c->id);
     $isEnabled = ($enabledVal !== '0'); // Default: enabled.
+    $utVal = get_config('local_ai_course_assistant', 'sola_usertesting_course_' . $c->id);
+    // User testing state: '' = inherit, '1' = on, '0' = off.
+    $utState = ($utVal === '1') ? 'on' : (($utVal === '0') ? 'off' : 'inherit');
+    $utGlobal = (bool) get_config('local_ai_course_assistant', 'usertesting_enabled');
+    $utEffective = ($utVal === '1') || ($utVal !== '0' && $utGlobal);
     $courseList[] = [
         'id'        => (int) $c->id,
         'fullname'  => $c->fullname,
@@ -100,6 +119,10 @@ foreach ($allCourses as $c) {
         'has_data'  => $hasData,
         'enabled'   => $isEnabled,
         'selected'  => ((int) $c->id === $courseid),
+        'ut_on'     => $utState === 'on',
+        'ut_off'    => $utState === 'off',
+        'ut_inherit'=> $utState === 'inherit',
+        'ut_effective' => $utEffective,
         'sesskey'   => sesskey(),
         'range'     => $range,
         'courseid_param' => $courseid,
