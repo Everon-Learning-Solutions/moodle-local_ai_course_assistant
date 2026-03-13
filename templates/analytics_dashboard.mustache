@@ -62,46 +62,96 @@
     <p class="text-muted">Enable or disable SOLA per course. Click a course name to view detailed analytics.</p>
 
     {{#has_courses}}
+    {{! Search + filter bar }}
     <div class="d-flex align-items-center mb-2 flex-wrap" style="gap:8px">
-        <input type="text" id="sola-course-search" class="form-control form-control-sm" style="max-width:300px"
+        <input type="text" id="sola-course-search" class="form-control form-control-sm" style="max-width:260px"
                placeholder="Search courses..." aria-label="Filter course list">
-        <form method="post" action="{{form_action}}" style="display:inline">
-            <input type="hidden" name="sesskey" value="{{sesskey}}">
-            <input type="hidden" name="action" value="bulktoggle">
-            <input type="hidden" name="enabled" value="0">
-            <input type="hidden" name="courseid" value="{{courseid_param}}">
-            <input type="hidden" name="range" value="{{range}}">
-            <button type="submit" class="btn btn-sm btn-outline-danger"
-                    onclick="return confirm('Disable SOLA on ALL courses?')">
-                Disable All
-            </button>
-        </form>
-        <form method="post" action="{{form_action}}" style="display:inline">
-            <input type="hidden" name="sesskey" value="{{sesskey}}">
-            <input type="hidden" name="action" value="bulktoggle">
-            <input type="hidden" name="enabled" value="1">
-            <input type="hidden" name="courseid" value="{{courseid_param}}">
-            <input type="hidden" name="range" value="{{range}}">
-            <button type="submit" class="btn btn-sm btn-outline-success"
-                    onclick="return confirm('Enable SOLA on ALL courses?')">
-                Enable All
-            </button>
-        </form>
+        <select id="sola-filter-status" class="form-control form-control-sm" style="max-width:160px" aria-label="Filter by SOLA status">
+            <option value="">All SOLA Status</option>
+            <option value="enabled">SOLA Enabled</option>
+            <option value="disabled">SOLA Disabled</option>
+        </select>
+        <select id="sola-filter-ut" class="form-control form-control-sm" style="max-width:180px" aria-label="Filter by user testing">
+            <option value="">All User Testing</option>
+            <option value="on">UT On</option>
+            <option value="off">UT Off</option>
+            <option value="inherit">UT Inherit</option>
+        </select>
     </div>
+
+    {{! Bulk action bar }}
+    <div class="card mb-2 bg-light" id="sola-bulk-bar">
+        <div class="card-body py-2 px-3 d-flex align-items-center flex-wrap" style="gap:8px">
+            <label class="mb-0" style="font-weight:600;font-size:13px">
+                <input type="checkbox" id="sola-select-all"> Select all
+            </label>
+            <span id="sola-selected-count" class="text-muted" style="font-size:13px">(0 selected)</span>
+            <span class="mx-1" style="border-left:1px solid #ccc;height:20px"></span>
+
+            <span style="font-size:13px;font-weight:600">SOLA:</span>
+            <button type="button" class="btn btn-sm btn-outline-success sola-bulk-action" data-action="bulktoggle" data-enabled="1">
+                Enable
+            </button>
+            <button type="button" class="btn btn-sm btn-outline-danger sola-bulk-action" data-action="bulktoggle" data-enabled="0">
+                Disable
+            </button>
+
+            <span class="mx-1" style="border-left:1px solid #ccc;height:20px"></span>
+
+            <span style="font-size:13px;font-weight:600">User Testing:</span>
+            <button type="button" class="btn btn-sm btn-outline-success sola-bulk-action" data-action="bulktoggleut" data-utvalue="1">
+                Enable
+            </button>
+            <button type="button" class="btn btn-sm btn-outline-danger sola-bulk-action" data-action="bulktoggleut" data-utvalue="0">
+                Disable
+            </button>
+            <button type="button" class="btn btn-sm btn-outline-secondary sola-bulk-action" data-action="bulktoggleut" data-utvalue="">
+                Inherit
+            </button>
+        </div>
+    </div>
+
+    {{! Hidden form for bulk submissions }}
+    <form method="post" action="{{form_action}}" id="sola-bulk-form" style="display:none">
+        <input type="hidden" name="sesskey" value="{{sesskey}}">
+        <input type="hidden" name="action" id="sola-bulk-form-action" value="">
+        <input type="hidden" name="courseid" value="{{courseid_param}}">
+        <input type="hidden" name="range" value="{{range}}">
+        <input type="hidden" name="scope" value="selected">
+        <input type="hidden" name="selected_ids" id="sola-bulk-form-ids" value="">
+        <input type="hidden" name="enabled" id="sola-bulk-form-enabled" value="">
+        <input type="hidden" name="utvalue" id="sola-bulk-form-utvalue" value="">
+    </form>
+
     <div class="card mb-4">
         <div class="card-body p-0">
             <table class="table table-striped mb-0" id="sola-course-table">
                 <thead>
                     <tr>
-                        <th>Course</th>
-                        <th class="text-center" style="width:120px">SOLA Status</th>
-                        <th class="text-center" style="width:140px">User Testing</th>
-                        <th class="text-center" style="width:100px">Has Data</th>
+                        <th style="width:40px" class="text-center"></th>
+                        <th class="sola-sortable" data-sort="name" style="cursor:pointer">
+                            Course <span class="sola-sort-icon">&#8597;</span>
+                        </th>
+                        <th class="text-center sola-sortable" data-sort="sola" style="width:120px;cursor:pointer">
+                            SOLA Status <span class="sola-sort-icon">&#8597;</span>
+                        </th>
+                        <th class="text-center sola-sortable" data-sort="ut" style="width:140px;cursor:pointer">
+                            User Testing <span class="sola-sort-icon">&#8597;</span>
+                        </th>
+                        <th class="text-center sola-sortable" data-sort="data" style="width:100px;cursor:pointer">
+                            Has Data <span class="sola-sort-icon">&#8597;</span>
+                        </th>
                     </tr>
                 </thead>
                 <tbody>
                     {{#courses}}
-                    <tr>
+                    <tr data-courseid="{{id}}"
+                        data-sola="{{#enabled}}enabled{{/enabled}}{{^enabled}}disabled{{/enabled}}"
+                        data-ut="{{#ut_on}}on{{/ut_on}}{{#ut_off}}off{{/ut_off}}{{#ut_inherit}}inherit{{/ut_inherit}}"
+                        data-hasdata="{{#has_data}}1{{/has_data}}{{^has_data}}0{{/has_data}}">
+                        <td class="text-center">
+                            <input type="checkbox" class="sola-row-check" value="{{id}}">
+                        </td>
                         <td>
                             {{#has_data}}
                             <a href="{{form_action}}?courseid={{id}}&amp;range={{range}}">
@@ -598,25 +648,160 @@
     {{/has_course_selected}}
 </div>
 
-{{#has_course_selected}}
-{{#course.has_data}}
+{{#has_courses}}
 {{#js}}
 (function() {
-    // Course search filter.
+    // ── Course table: search, filter, sort, checkboxes, bulk actions ──
     var searchBox = document.getElementById('sola-course-search');
+    var filterStatus = document.getElementById('sola-filter-status');
+    var filterUt = document.getElementById('sola-filter-ut');
     var courseTable = document.getElementById('sola-course-table');
-    if (searchBox && courseTable) {
-        searchBox.addEventListener('input', function() {
-            var q = this.value.toLowerCase();
-            var rows = courseTable.querySelectorAll('tbody tr');
+    var selectAll = document.getElementById('sola-select-all');
+    var selectedCount = document.getElementById('sola-selected-count');
+    var bulkForm = document.getElementById('sola-bulk-form');
+
+    function getRows() {
+        return courseTable ? Array.prototype.slice.call(courseTable.querySelectorAll('tbody tr')) : [];
+    }
+
+    function applyFilters() {
+        var q = (searchBox ? searchBox.value : '').toLowerCase();
+        var sf = filterStatus ? filterStatus.value : '';
+        var uf = filterUt ? filterUt.value : '';
+        var rows = getRows();
+        for (var i = 0; i < rows.length; i++) {
+            var r = rows[i];
+            var matchText = !q || r.textContent.toLowerCase().indexOf(q) !== -1;
+            var matchSola = !sf || r.getAttribute('data-sola') === sf;
+            var matchUt = !uf || r.getAttribute('data-ut') === uf;
+            r.style.display = (matchText && matchSola && matchUt) ? '' : 'none';
+        }
+        updateCount();
+    }
+
+    function updateCount() {
+        if (!selectedCount) return;
+        var checks = courseTable ? courseTable.querySelectorAll('.sola-row-check:checked') : [];
+        selectedCount.textContent = '(' + checks.length + ' selected)';
+    }
+
+    function getSelectedIds() {
+        var ids = [];
+        if (!courseTable) return ids;
+        var checks = courseTable.querySelectorAll('.sola-row-check:checked');
+        for (var i = 0; i < checks.length; i++) {
+            ids.push(checks[i].value);
+        }
+        return ids;
+    }
+
+    if (searchBox) searchBox.addEventListener('input', applyFilters);
+    if (filterStatus) filterStatus.addEventListener('change', applyFilters);
+    if (filterUt) filterUt.addEventListener('change', applyFilters);
+
+    // Select all checkbox.
+    if (selectAll && courseTable) {
+        selectAll.addEventListener('change', function() {
+            var checked = selectAll.checked;
+            var rows = getRows();
             for (var i = 0; i < rows.length; i++) {
-                var name = rows[i].textContent.toLowerCase();
-                rows[i].style.display = name.indexOf(q) !== -1 ? '' : 'none';
+                if (rows[i].style.display !== 'none') {
+                    var cb = rows[i].querySelector('.sola-row-check');
+                    if (cb) cb.checked = checked;
+                }
             }
+            updateCount();
+        });
+    }
+
+    // Individual checkbox updates.
+    if (courseTable) {
+        courseTable.addEventListener('change', function(e) {
+            if (e.target.classList.contains('sola-row-check')) {
+                updateCount();
+                if (selectAll && !e.target.checked) selectAll.checked = false;
+            }
+        });
+    }
+
+    // Bulk action buttons.
+    var bulkBtns = document.querySelectorAll('.sola-bulk-action');
+    for (var b = 0; b < bulkBtns.length; b++) {
+        bulkBtns[b].addEventListener('click', function() {
+            var ids = getSelectedIds();
+            var action = this.getAttribute('data-action');
+            var label = action === 'bulktoggle' ? 'SOLA' : 'User Testing';
+
+            if (ids.length === 0) {
+                if (!confirm('No courses selected. Apply to ALL courses?')) return;
+                document.getElementById('sola-bulk-form').querySelector('[name="scope"]').value = 'all';
+            } else {
+                if (!confirm('Apply ' + label + ' change to ' + ids.length + ' selected course(s)?')) return;
+                document.getElementById('sola-bulk-form').querySelector('[name="scope"]').value = 'selected';
+                document.getElementById('sola-bulk-form-ids').value = ids.join(',');
+            }
+
+            document.getElementById('sola-bulk-form-action').value = action;
+            if (action === 'bulktoggle') {
+                document.getElementById('sola-bulk-form-enabled').value = this.getAttribute('data-enabled');
+            } else {
+                document.getElementById('sola-bulk-form-utvalue').value = this.getAttribute('data-utvalue');
+            }
+            bulkForm.submit();
+        });
+    }
+
+    // Sortable columns.
+    var sortDir = {};
+    var sortHeaders = courseTable ? courseTable.querySelectorAll('.sola-sortable') : [];
+    for (var h = 0; h < sortHeaders.length; h++) {
+        sortHeaders[h].addEventListener('click', function() {
+            var col = this.getAttribute('data-sort');
+            sortDir[col] = sortDir[col] === 'asc' ? 'desc' : 'asc';
+            var dir = sortDir[col];
+            var tbody = courseTable.querySelector('tbody');
+            var rows = getRows();
+
+            rows.sort(function(a, b) {
+                var va, vb;
+                if (col === 'name') {
+                    va = a.cells[1].textContent.trim().toLowerCase();
+                    vb = b.cells[1].textContent.trim().toLowerCase();
+                } else if (col === 'sola') {
+                    va = a.getAttribute('data-sola');
+                    vb = b.getAttribute('data-sola');
+                } else if (col === 'ut') {
+                    va = a.getAttribute('data-ut');
+                    vb = b.getAttribute('data-ut');
+                } else if (col === 'data') {
+                    va = a.getAttribute('data-hasdata');
+                    vb = b.getAttribute('data-hasdata');
+                }
+                if (va < vb) return dir === 'asc' ? -1 : 1;
+                if (va > vb) return dir === 'asc' ? 1 : -1;
+                return 0;
+            });
+
+            for (var i = 0; i < rows.length; i++) {
+                tbody.appendChild(rows[i]);
+            }
+
+            // Update sort icons.
+            var icons = courseTable.querySelectorAll('.sola-sort-icon');
+            for (var j = 0; j < icons.length; j++) {
+                icons[j].innerHTML = '&#8597;';
+            }
+            this.querySelector('.sola-sort-icon').innerHTML = dir === 'asc' ? '&#9650;' : '&#9660;';
         });
     }
 })();
 
+{{/js}}
+{{/has_courses}}
+
+{{#has_course_selected}}
+{{#course.has_data}}
+{{#js}}
 (function() {
     var canvas = document.getElementById('aitc-usage-chart');
     if (!canvas) return;
