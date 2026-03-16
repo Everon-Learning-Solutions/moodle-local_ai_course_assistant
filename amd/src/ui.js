@@ -989,6 +989,34 @@ define([
             }, {passive: true});
         }
 
+        // ── Swipe right on drawer to close (mobile) ─────────────────────────────
+        if (drawer) {
+            var swipeRStartX = 0;
+            var swipeRStartY = 0;
+            var swipeRTracking = false;
+            drawer.addEventListener('touchstart', function(e) {
+                // Only track single-finger swipes that don't start on interactive elements.
+                if (e.touches.length !== 1) { return; }
+                if (e.target.closest('button, a, input, textarea, select, .aica-swipe-handle')) { return; }
+                swipeRStartX = e.touches[0].clientX;
+                swipeRStartY = e.touches[0].clientY;
+                swipeRTracking = true;
+            }, {passive: true});
+            drawer.addEventListener('touchmove', function() {
+                // touchmove is only needed to keep tracking alive; actual check is in touchend.
+            }, {passive: true});
+            drawer.addEventListener('touchend', function(e) {
+                if (!swipeRTracking) { return; }
+                swipeRTracking = false;
+                var dx = e.changedTouches[0].clientX - swipeRStartX;
+                var dy = Math.abs(e.changedTouches[0].clientY - swipeRStartY);
+                // Require horizontal swipe: ≥80px right, vertical movement < half of horizontal.
+                if (dx >= 80 && dy < dx * 0.5) {
+                    closeDrawer();
+                }
+            }, {passive: true});
+        }
+
         // ── Tap outside drawer to close (desktop + mobile) ───────────────────────
         // Use composedPath() so elements removed from the DOM during event
         // propagation (e.g. suggestion chips cleared by clearSuggestions()) still
