@@ -1624,6 +1624,28 @@ define([
     };
 
     /**
+     * Show a standalone stop button (before streaming starts, e.g. during typing indicator).
+     *
+     * @param {Function} onStop  Callback when the user clicks Stop
+     */
+    const showStopButton = function(onStop) {
+        removeStopButton();
+        if (!messagesContainer || !onStop) { return; }
+        stopStreamBtn = document.createElement('button');
+        stopStreamBtn.className = 'aica-stop-stream-btn';
+        stopStreamBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">'
+            + '<rect x="4" y="4" width="16" height="16" rx="2"/></svg> Stop';
+        stopStreamBtn.addEventListener('click', function() {
+            onStop();
+            removeStopButton();
+        });
+        messagesContainer.appendChild(stopStreamBtn);
+        programmaticScroll = true;
+        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        programmaticScroll = false;
+    };
+
+    /**
      * Internal: advance the typewriter by TYPEWRITER_SPEED characters and re-render.
      */
     const tickTypewriter = function() {
@@ -3890,7 +3912,6 @@ define([
         });
 
         appendMessageNode(container);
-        scrollToBottom();
     };
 
     /**
@@ -4672,6 +4693,8 @@ define([
         startStreaming: startStreaming,
         updateStreamContent: updateStreamContent,
         finishStreaming: finishStreaming,
+        showStopButton: showStopButton,
+        removeStopButton: removeStopButton,
         scrollToBottom: scrollToBottom,
         showTyping: showTyping,
         setInputEnabled: setInputEnabled,

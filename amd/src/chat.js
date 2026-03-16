@@ -4087,6 +4087,25 @@ define([
             updateContextDebugRequest(postData);
         }
 
+        // Show the stop button immediately so the user can cancel before any tokens arrive.
+        var stopStreamHandler = function() {
+            if (streamController) {
+                streamController.abort();
+                streamController = null;
+            }
+            UI.showTyping(false);
+            if (fullText) {
+                const parsed = parseAssistantDecorators(fullText);
+                UI.finishStreaming(parsed.text, (getTtsUrl() || Speech.isTTSSupported()) ? handleSpeak : null);
+                recordConversationMessage('assistant', parsed.text, Date.now());
+            } else {
+                UI.removeStopButton();
+            }
+            sending = false;
+            UI.setInputEnabled(true);
+        };
+        UI.showStopButton(stopStreamHandler);
+
         streamMeta = null;
         streamController = SSE.startStream(sseUrl, postData, {
             onMeta: function(meta) {
@@ -4097,21 +4116,8 @@ define([
             },
             onToken: function(token) {
                 if (!fullText) {
-                    // First token — create the streaming message element with stop button.
-                    UI.startStreaming(function() {
-                        // User clicked Stop — abort the SSE stream.
-                        if (streamController) {
-                            streamController.abort();
-                            streamController = null;
-                        }
-                        if (fullText) {
-                            const parsed = parseAssistantDecorators(fullText);
-                            UI.finishStreaming(parsed.text, (getTtsUrl() || Speech.isTTSSupported()) ? handleSpeak : null);
-                            recordConversationMessage('assistant', parsed.text, Date.now());
-                        }
-                        sending = false;
-                        UI.setInputEnabled(true);
-                    });
+                    // First token — create the streaming message element (stop button already visible).
+                    UI.startStreaming(null);
                 }
                 fullText += token;
                 UI.updateStreamContent(fullText);
