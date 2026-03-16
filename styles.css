@@ -282,7 +282,8 @@
     filter: brightness(0) invert(1);
     width: 16px;
     height: 16px;
-    margin: 0;
+    margin: 0 !important;
+    padding: 0;
 }
 
 /* Messages area — flex: 1 lets it fill available drawer height automatically */

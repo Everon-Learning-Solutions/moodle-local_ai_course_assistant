@@ -1596,8 +1596,9 @@ define([
 
         // If a stop button was already shown (e.g. during typing indicator),
         // move it below the new streaming message so it stays at the bottom.
-        if (stopStreamBtn && stopStreamBtn.parentNode && messagesContainer) {
-            messagesContainer.appendChild(stopStreamBtn);
+        if (stopStreamBtn && stopStreamBtn.parentNode) {
+            stopStreamBtn.parentNode.removeChild(stopStreamBtn);
+            appendMessageNode(stopStreamBtn);
         }
 
         // Show a stop button below the streaming message so the user can interrupt.
@@ -1610,7 +1611,7 @@ define([
                 onStop();
                 removeStopButton();
             });
-            messagesContainer.appendChild(stopStreamBtn);
+            appendMessageNode(stopStreamBtn);
             programmaticScroll = true;
             messagesContainer.scrollTop = messagesContainer.scrollHeight;
             programmaticScroll = false;
@@ -1645,7 +1646,7 @@ define([
             onStop();
             removeStopButton();
         });
-        messagesContainer.appendChild(stopStreamBtn);
+        appendMessageNode(stopStreamBtn);
         programmaticScroll = true;
         messagesContainer.scrollTop = messagesContainer.scrollHeight;
         programmaticScroll = false;
