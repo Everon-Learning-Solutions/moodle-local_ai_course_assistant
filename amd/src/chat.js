@@ -2757,15 +2757,43 @@ define([
 
                         UI.startMouthSyncFromAnalyser(analyser);
 
-                        if (wordSpans && cleanText) {
+                        if (wordSpans && wordSpans.length && cleanText) {
+                            // Build word-weighted timing: longer words take more time,
+                            // punctuation at end of word adds a pause.
+                            var wordWeights = [];
+                            var totalWeight = 0;
+                            for (var w = 0; w < wordSpans.length; w++) {
+                                var word = wordSpans[w].el.textContent;
+                                // Base weight: character count (rough syllable proxy).
+                                var weight = Math.max(word.length, 1);
+                                // Punctuation pause: add extra weight for sentence/clause endings.
+                                var lastChar = word.charAt(word.length - 1);
+                                if (lastChar === '.' || lastChar === '!' || lastChar === '?') {
+                                    weight += 4;
+                                } else if (lastChar === ',' || lastChar === ';' || lastChar === ':') {
+                                    weight += 2;
+                                }
+                                totalWeight += weight;
+                                wordWeights.push(totalWeight);
+                            }
                             var rafId;
                             var onFrame = function() {
                                 if (!currentAudio) { return; }
                                 var elapsed = ctx.currentTime - startedAt;
-                                var charIndex = Math.floor(
-                                    (elapsed / audioBuffer.duration) * cleanText.length
-                                );
-                                UI.highlightWordAt(wordSpans, charIndex);
+                                var progress = Math.min(elapsed / audioBuffer.duration, 1);
+                                var target = progress * totalWeight;
+                                // Binary search for the word at this time position.
+                                var lo = 0, hi = wordWeights.length - 1, idx = 0;
+                                while (lo <= hi) {
+                                    var mid = (lo + hi) >>> 1;
+                                    if (wordWeights[mid] <= target) {
+                                        lo = mid + 1;
+                                    } else {
+                                        idx = mid;
+                                        hi = mid - 1;
+                                    }
+                                }
+                                UI.highlightWordAt(wordSpans, wordSpans[idx].start);
                                 rafId = requestAnimationFrame(onFrame);
                             };
                             rafId = requestAnimationFrame(onFrame);
@@ -2797,28 +2825,54 @@ define([
                 const audio = new Audio(objUrl);
                 currentAudio = audio;
                 UI.startMouthSync(audio);
-                if (wordSpans && cleanText) {
-                    audio.addEventListener('timeupdate', function() {
-                        if (!audio.duration) { return; }
-                        const charIndex = Math.floor(
-                            (audio.currentTime / audio.duration) * cleanText.length
-                        );
-                        UI.highlightWordAt(wordSpans, charIndex);
-                    });
+                var hlRafId = null;
+                if (wordSpans && wordSpans.length && cleanText) {
+                    // Word-weighted timing for HTMLAudio fallback.
+                    var hwWeights = [];
+                    var hwTotal = 0;
+                    for (var hw = 0; hw < wordSpans.length; hw++) {
+                        var wrd = wordSpans[hw].el.textContent;
+                        var wt = Math.max(wrd.length, 1);
+                        var lc = wrd.charAt(wrd.length - 1);
+                        if (lc === '.' || lc === '!' || lc === '?') { wt += 4; }
+                        else if (lc === ',' || lc === ';' || lc === ':') { wt += 2; }
+                        hwTotal += wt;
+                        hwWeights.push(hwTotal);
+                    }
+                    var hlFrame = function() {
+                        if (!currentAudio || !audio.duration) {
+                            hlRafId = requestAnimationFrame(hlFrame);
+                            return;
+                        }
+                        var prog = Math.min(audio.currentTime / audio.duration, 1);
+                        var tgt = prog * hwTotal;
+                        var lo2 = 0, hi2 = hwWeights.length - 1, idx2 = 0;
+                        while (lo2 <= hi2) {
+                            var m2 = (lo2 + hi2) >>> 1;
+                            if (hwWeights[m2] <= tgt) { lo2 = m2 + 1; }
+                            else { idx2 = m2; hi2 = m2 - 1; }
+                        }
+                        UI.highlightWordAt(wordSpans, wordSpans[idx2].start);
+                        hlRafId = requestAnimationFrame(hlFrame);
+                    };
+                    hlRafId = requestAnimationFrame(hlFrame);
                 }
                 audio.addEventListener('ended', function() {
+                    if (hlRafId) { cancelAnimationFrame(hlRafId); }
                     URL.revokeObjectURL(objUrl);
                     currentAudio = null;
                     UI.stopMouthSync();
                     if (callback) { callback(); }
                 });
                 audio.addEventListener('error', function() {
+                    if (hlRafId) { cancelAnimationFrame(hlRafId); }
                     URL.revokeObjectURL(objUrl);
                     currentAudio = null;
                     UI.stopMouthSync();
                     Speech.speak(text, callback);
                 });
                 audio.play().catch(function() {
+                    if (hlRafId) { cancelAnimationFrame(hlRafId); }
                     URL.revokeObjectURL(objUrl);
                     currentAudio = null;
                     UI.stopMouthSync();
