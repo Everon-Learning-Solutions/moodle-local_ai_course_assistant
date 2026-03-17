@@ -1,4 +1,4 @@
-﻿// This file is part of Moodle - http://moodle.org/
+// This file is part of Moodle - http://moodle.org/
 //
 // Moodle is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -1255,18 +1255,35 @@ define([
     };
 
     /**
-     * Auto-set language from browser on first visit; update label on subsequent visits.
+     * Auto-set language from Moodle page (if available) or browser on first visit;
+     * update label on subsequent visits.
      */
     const initLanguage = function() {
+        const rootEl = document.getElementById('local-ai-course-assistant');
+        const moodleLangCode = rootEl && rootEl.dataset.moodleLang
+            ? rootEl.dataset.moodleLang.split('_')[0].toLowerCase()
+            : null;
+        const moodleLangInfo = moodleLangCode ? Speech.getLangInfo(moodleLangCode) : null;
         const stored = Speech.getLang();
 
         if (stored) {
-            // Already has a saved preference â€” update the label and starter texts.
-            const info = Speech.getLangInfo(stored);
-            if (info) {
-                UI.setLangLabel(info.name);
-                updateStarterTexts(stored);
+            // If a stored preference exists and either matches Moodle or Moodle language is unknown,
+            // respect the stored preference. If it differs from a known Moodle language, prefer Moodle.
+            if (!moodleLangInfo || stored === moodleLangCode) {
+                const info = Speech.getLangInfo(stored);
+                if (info) {
+                    UI.setLangLabel(info.name);
+                    updateStarterTexts(stored);
+                    return;
+                }
             }
+        }
+
+        // Prefer Moodle page language when available and supported (e.g. 'zh_cn' → 'zh').
+        if (moodleLangInfo && moodleLangCode) {
+            Speech.setLang(moodleLangCode);
+            UI.setLangLabel(moodleLangInfo.name);
+            updateStarterTexts(moodleLangCode);
             return;
         }
 
@@ -1282,7 +1299,7 @@ define([
             }
         }
 
-        // No language set â€” show English label so chip is always meaningful.
+        // No language set — show English label so chip is always meaningful.
         UI.setLangLabel('English');
     };
 
@@ -1320,15 +1337,12 @@ define([
             if (!span) {
                 return;
             }
-            if (btn.dataset.translatable !== '1') {
-                span.textContent = btn.dataset.labelEn || span.textContent;
-                return;
-            }
             const text = keyMap[btn.dataset.starter];
             if (text) {
+                // Always prefer translated labels when available.
                 span.textContent = text;
             } else {
-                // Reset to English (stored in data-label-en during init).
+                // Fall back to original English label.
                 span.textContent = btn.dataset.labelEn || span.textContent;
             }
         });

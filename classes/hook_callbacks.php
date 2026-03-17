@@ -311,6 +311,8 @@ class hook_callbacks {
             'serverpageheading'  => $serverpageheading,
             'llmoptionsjson'     => json_encode($llmoptions),
             'hasstarterdata'     => $hasstarterdata,
+            // Current Moodle language code (e.g. 'en', 'zh_cn') for JS language sync.
+            'lang'               => current_language(),
         ];
 
         $html = $OUTPUT->render_from_template('local_ai_course_assistant/chat_widget', $templatedata);
